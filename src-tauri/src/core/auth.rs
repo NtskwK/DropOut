@@ -4,6 +4,15 @@ use uuid::Uuid;
 
 // --- Account Types ---
 
+// Helper to create a client with a custom User-Agent
+// This is critical because Microsoft's WAF often blocks requests without a valid UA
+fn get_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .user_agent("DropOut/1.0 (Linux)")
+        .build()
+        .unwrap_or_else(|_| get_client())
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Account {
@@ -27,7 +36,7 @@ impl Account {
     }
 
     pub fn access_token(&self) -> String {
-         match self {
+        match self {
             Account::Offline(_) => "null".to_string(),
             Account::Microsoft(a) => a.access_token.clone(),
         }
@@ -46,7 +55,7 @@ pub struct MicrosoftAccount {
     pub uuid: String,
     pub access_token: String,
     pub refresh_token: Option<String>,
-    pub expires_at: i64, 
+    pub expires_at: i64,
 }
 
 // --- State ---
@@ -73,7 +82,7 @@ pub fn generate_offline_uuid(username: &str) -> String {
 // --- Microsoft Auth Logic ---
 
 // Constants
-const CLIENT_ID: &str = "fe165602-5410-4441-92f7-326e10a7cb82"; 
+const CLIENT_ID: &str = "fe165602-5410-4441-92f7-326e10a7cb82";
 const SCOPE: &str = "XboxLive.Signin offline_access openid profile email";
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -126,18 +135,15 @@ pub struct MinecraftProfile {
     pub name: String,
 }
 
-
 // 1. Start Device Flow
 pub async fn start_device_flow() -> Result<DeviceCodeResponse, String> {
-    let client = reqwest::Client::new();
+    let client = get_client();
     let url = "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode";
-    
-    let params = [
-        ("client_id", CLIENT_ID),
-        ("scope", SCOPE),
-    ];
 
-    let resp = client.post(url)
+    let params = [("client_id", CLIENT_ID), ("scope", SCOPE)];
+
+    let resp = client
+        .post(url)
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body(serde_urlencoded::to_string(&params).map_err(|e| e.to_string())?)
         .send()
@@ -147,26 +153,33 @@ pub async fn start_device_flow() -> Result<DeviceCodeResponse, String> {
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_else(|_| "No body".to_string());
-        return Err(format!("Device code request failed: {} - Body: {}", status, text));
+        return Err(format!(
+            "Device code request failed: {} - Body: {}",
+            status, text
+        ));
     }
 
-    let body = resp.json::<DeviceCodeResponse>().await.map_err(|e| e.to_string())?;
+    let body = resp
+        .json::<DeviceCodeResponse>()
+        .await
+        .map_err(|e| e.to_string())?;
     Ok(body)
 }
 
 // 2. Poll for Token (Simplified: User calls this repeatedly or we loop inside a command)
 // We'll implement a function that tries ONCE, consuming the device_code.
 pub async fn exchange_code_for_token(device_code: &str) -> Result<TokenResponse, String> {
-    let client = reqwest::Client::new();
+    let client = get_client();
     let url = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
-    
+
     let params = [
         ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
         ("client_id", CLIENT_ID),
         ("device_code", device_code),
     ];
 
-    let resp = client.post(url)
+    let resp = client
+        .post(url)
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body(serde_urlencoded::to_string(&params).map_err(|e| e.to_string())?)
         .send()
@@ -175,12 +188,12 @@ pub async fn exchange_code_for_token(device_code: &str) -> Result<TokenResponse,
 
     // Check application level error (e.g. "authorization_pending")
     let text = resp.text().await.map_err(|e| e.to_string())?;
-    
+
     // Try parse success
     if let Ok(token_resp) = serde_json::from_str::<TokenResponse>(&text) {
         return Ok(token_resp);
     }
-    
+
     // Try parse error
     if let Ok(err_resp) = serde_json::from_str::<TokenError>(&text) {
         return Err(err_resp.error); // "authorization_pending", "expired_token", "access_denied"
@@ -189,10 +202,9 @@ pub async fn exchange_code_for_token(device_code: &str) -> Result<TokenResponse,
     Err(format!("Unknown response: {}", text))
 }
 
-
 // 3. Authenticate with Xbox Live
 pub async fn method_xbox_live(ms_access_token: &str) -> Result<(String, String), String> {
-    let client = reqwest::Client::new();
+    let client = get_client();
     let url = "https://user.auth.xboxlive.com/user/authenticate";
 
     let payload = serde_json::json!({
@@ -205,7 +217,8 @@ pub async fn method_xbox_live(ms_access_token: &str) -> Result<(String, String),
         "TokenType": "JWT"
     });
 
-    let resp = client.post(url)
+    let resp = client
+        .post(url)
         .json(&payload)
         .header("Content-Type", "application/json")
         .header("Accept", "application/json")
@@ -220,9 +233,12 @@ pub async fn method_xbox_live(ms_access_token: &str) -> Result<(String, String),
     }
 
     let xbl_resp: XboxLiveResponse = resp.json().await.map_err(|e| e.to_string())?;
-    
+
     // Extract UHS (User Hash)
-    let uhs = xbl_resp.display_claims.xui.first()
+    let uhs = xbl_resp
+        .display_claims
+        .xui
+        .first()
         .and_then(|x| x.get("uhs"))
         .and_then(|s| s.as_str())
         .ok_or("Failed to find UHS code")?
@@ -233,7 +249,7 @@ pub async fn method_xbox_live(ms_access_token: &str) -> Result<(String, String),
 
 // 4. Authenticate with XSTS
 pub async fn method_xsts(xbl_token: &str) -> Result<String, String> {
-    let client = reqwest::Client::new();
+    let client = get_client();
     let url = "https://xsts.auth.xboxlive.com/xsts/authorize";
 
     let payload = serde_json::json!({
@@ -245,17 +261,18 @@ pub async fn method_xsts(xbl_token: &str) -> Result<String, String> {
         "TokenType": "JWT"
     });
 
-    let resp = client.post(url)
+    let resp = client
+        .post(url)
         .json(&payload)
         .send()
         .await
         .map_err(|e| e.to_string())?;
 
     if !resp.status().is_success() {
-         // Should handle specific errors like "Account not verified", "Age restriction"
-         let status = resp.status();
-         let text = resp.text().await.unwrap_or_default();
-         return Err(format!("XSTS auth failed: {} - {}", status, text));
+        // Should handle specific errors like "Account not verified", "Age restriction"
+        let status = resp.status();
+        let text = resp.text().await.unwrap_or_default();
+        return Err(format!("XSTS auth failed: {} - {}", status, text));
     }
 
     let xsts_resp: XboxLiveResponse = resp.json().await.map_err(|e| e.to_string())?;
@@ -264,14 +281,15 @@ pub async fn method_xsts(xbl_token: &str) -> Result<String, String> {
 
 // 5. Authenticate with Minecraft
 pub async fn login_minecraft(xsts_token: &str, uhs: &str) -> Result<String, String> {
-    let client = reqwest::Client::new();
+    let client = get_client();
     let url = "https://api.minecraftservices.com/authentication/login_with_xbox";
 
     let payload = serde_json::json!({
         "identityToken": format!("XBL3.0 x={};{}", uhs, xsts_token)
     });
 
-    let resp = client.post(url)
+    let resp = client
+        .post(url)
         .json(&payload)
         .send()
         .await
@@ -280,7 +298,10 @@ pub async fn login_minecraft(xsts_token: &str, uhs: &str) -> Result<String, Stri
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_else(|_| "No body".to_string());
-        return Err(format!("Minecraft auth failed: {} - Body: {}", status, text));
+        return Err(format!(
+            "Minecraft auth failed: {} - Body: {}",
+            status, text
+        ));
     }
 
     let mc_resp: MinecraftAuthResponse = resp.json().await.map_err(|e| e.to_string())?;
@@ -289,10 +310,11 @@ pub async fn login_minecraft(xsts_token: &str, uhs: &str) -> Result<String, Stri
 
 // 6. Get Profile
 pub async fn fetch_profile(mc_access_token: &str) -> Result<MinecraftProfile, String> {
-    let client = reqwest::Client::new();
+    let client = get_client();
     let url = "https://api.minecraftservices.com/minecraft/profile";
 
-    let resp = client.get(url)
+    let resp = client
+        .get(url)
         .bearer_auth(mc_access_token)
         .send()
         .await
@@ -322,22 +344,27 @@ pub struct EntitlementsResponse {
 }
 
 pub async fn check_ownership(mc_access_token: &str) -> Result<bool, String> {
-    let client = reqwest::Client::new();
+    let client = get_client();
     let url = "https://api.minecraftservices.com/entitlements/mcstore";
 
-    let resp = client.get(url)
+    let resp = client
+        .get(url)
         .bearer_auth(mc_access_token)
         .send()
         .await
         .map_err(|e| e.to_string())?;
 
     if !resp.status().is_success() {
+        let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        return Err(format!("Entitlement check failed: {} - {}", resp.status(), text));
+        return Err(format!("Entitlement check failed: {} - {}", status, text));
     }
 
     let body: EntitlementsResponse = resp.json().await.map_err(|e| e.to_string())?;
     // We look for "product_minecraft" or "game_minecraft"
-    let owns_game = body.items.iter().any(|e| e.name == "product_minecraft" || e.name == "game_minecraft");
+    let owns_game = body
+        .items
+        .iter()
+        .any(|e| e.name == "product_minecraft" || e.name == "game_minecraft");
     Ok(owns_game)
 }
