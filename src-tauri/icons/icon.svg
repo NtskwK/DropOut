@@ -5,28 +5,46 @@
     <!-- Grid Pattern -->
     <defs>
         <pattern id="smallGrid" width="40" height="40" patternUnits="userSpaceOnUse">
-            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#33363b" stroke-width="2"/>
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#2c2f33" stroke-width="2"/>
         </pattern>
+        <!-- Glow filter for active connections -->
+        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
     </defs>
     <rect width="100%" height="100%" fill="url(#smallGrid)" />
 
-    <!-- Axes -->
-    <!-- X Axis line -->
-    <line x1="20" y1="400" x2="480" y2="400" stroke="#72767d" stroke-width="6" stroke-linecap="round"/>
-    <!-- Y Axis line -->
-    <line x1="256" y1="32" x2="256" y2="492" stroke="#72767d" stroke-width="6" stroke-linecap="round"/>
+    <!-- Neural Network Connections (Lines) -->
+    <!-- Only lines between ACTIVE nodes are drawn normally -->
     
-    <!-- Axis Arrows -->
-    <!-- X End Arrow (Right) -->
-    <path d="M 480 390 L 500 400 L 480 410" fill="none" stroke="#72767d" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
-    <!-- Y End Arrow (Top) -->
-    <path d="M 246 32 L 256 12 L 266 32" fill="none" stroke="#72767d" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Input (Left) to Hidden (Middle Active) -->
+    <path d="M 100 128 L 256 256" stroke="#43b581" stroke-width="8" stroke-linecap="round" opacity="0.8"/> <!-- Top to Center -->
+    <path d="M 100 256 L 256 256" stroke="#43b581" stroke-width="8" stroke-linecap="round" opacity="1.0" filter="url(#glow)"/> <!-- Mid to Center (Strongest) -->
+    <path d="M 100 384 L 256 256" stroke="#43b581" stroke-width="8" stroke-linecap="round" opacity="0.8"/> <!-- Bot to Center -->
 
-    <!-- ReLU Function Graph -->
-    <!-- Flat part (x < 0) -->
-    <!-- Rising part (x > 0) -->
-    <path d="M 20 400 L 256 400 L 462 100" stroke="#43b581" stroke-width="24" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Hidden (Middle Active) to Output (Right) -->
+    <path d="M 256 256 L 412 256" stroke="#43b581" stroke-width="8" stroke-linecap="round" opacity="1.0" filter="url(#glow)"/>
 
-    <!-- Origin Dot (Hinge) -->
-    <circle cx="256" cy="400" r="16" fill="#7289da" stroke="#23272a" stroke-width="4"/>
+    <!-- Disconnected "Ghost" Lines (Optional: faint traces, or just omit to emphasize dropout) -->
+    <!-- Let's omit them to keep it clean and high-contrast, representing true dropout -->
+
+    <!-- Nodes -->
+    
+    <!-- Layer 1: Input (All Active) - x=100 -->
+    <circle cx="100" cy="128" r="30" fill="#7289da" stroke="#ffffff" stroke-width="4"/>
+    <circle cx="100" cy="256" r="30" fill="#7289da" stroke="#ffffff" stroke-width="4"/>
+    <circle cx="100" cy="384" r="30" fill="#7289da" stroke="#ffffff" stroke-width="4"/>
+
+    <!-- Layer 2: Hidden (Dropout Layer) - x=256 -->
+    <!-- Node 1: DROPPED (Ghost) -->
+    <circle cx="256" cy="128" r="28" fill="none" stroke="#4f545c" stroke-width="4" stroke-dasharray="8,6"/>
+    <!-- Node 2: ACTIVE -->
+    <circle cx="256" cy="256" r="32" fill="#43b581" stroke="#ffffff" stroke-width="4"/>
+    <!-- Node 3: DROPPED (Ghost) -->
+    <circle cx="256" cy="384" r="28" fill="none" stroke="#4f545c" stroke-width="4" stroke-dasharray="8,6"/>
+
+    <!-- Layer 3: Output - x=412 -->
+    <circle cx="412" cy="256" r="30" fill="#7289da" stroke="#ffffff" stroke-width="4"/>
+
 </svg>

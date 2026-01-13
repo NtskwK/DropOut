@@ -21,12 +21,22 @@ Not Yet. :{
 
 ## Installation
 
-You can download the latest version of DropOut from the [Releases](https://github.com/HsiangNianian/DropOut/releases) page, or you can build it from source:
+You can download the latest version of DropOut from the [Releases](https://github.com/HsiangNianian/DropOut/releases) page.
+
+### Build from Source
+
+Prerequisites:
+- [Rust](https://www.rust-lang.org/tools/install)
+- [Tauri Prerequisites](https://v2.tauri.app/start/prerequisites/)
 
 ```bash
 git clone https://github.com/HsiangNianian/DropOut
 cd DropOut
-cargo build --release
+# Install frontend dependencies (if any)
+# npm install
+
+# Build the application
+cargo tauri build
 ```
 
 ## License
