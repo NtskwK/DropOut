@@ -25,9 +25,17 @@
     releaseTime: string;
   }
 
-  interface OfflineAccount {
+  interface Account {
+    type: "Offline" | "Microsoft";
     username: string;
     uuid: string;
+  }
+
+  interface DeviceCodeResponse {
+    user_code: string;
+    device_code: string;
+    verification_uri: string;
+    message?: string;
   }
 
   interface LauncherConfig {
@@ -40,7 +48,7 @@
 
   let versions: Version[] = [];
   let selectedVersion = "";
-  let currentAccount: OfflineAccount | null = null;
+  let currentAccount: Account | null = null;
   let settings: LauncherConfig = {
     min_memory: 1024,
     max_memory: 2048,
@@ -48,6 +56,13 @@
     width: 854,
     height: 480,
   };
+
+  // Login UI State
+  let isLoginModalOpen = false;
+  let loginMode: 'select' | 'offline' | 'microsoft' = 'select';
+  let offlineUsername = "";
+  let deviceCodeData: DeviceCodeResponse | null = null;
+  let msLoginLoading = false;
 
   onMount(async () => {
     checkAccount();
@@ -68,7 +83,7 @@
   async function checkAccount() {
     try {
       const acc = await invoke("get_active_account");
-      currentAccount = acc as OfflineAccount | null;
+      currentAccount = acc as Account | null;
     } catch (e) {
       console.error("Failed to check account:", e);
     }
@@ -92,32 +107,75 @@
     }
   }
 
-  async function login() {
+  // --- Auth Functions ---
+
+  function openLoginModal() {
     if (currentAccount) {
       if (confirm("Logout " + currentAccount.username + "?")) {
-        try {
-          await invoke("logout");
-          currentAccount = null;
-        } catch (e) {
-          console.error("Logout failed:", e);
-        }
+        invoke("logout").then(() => currentAccount = null);
       }
       return;
     }
-    const username = prompt("Enter username for offline login:");
-    if (username) {
-      try {
-        currentAccount = await invoke("login_offline", { username });
-      } catch (e) {
-        alert("Login failed: " + e);
-      }
+    // Reset state
+    isLoginModalOpen = true;
+    loginMode = 'select';
+    offlineUsername = "";
+    deviceCodeData = null;
+    msLoginLoading = false;
+  }
+
+  function closeLoginModal() {
+    isLoginModalOpen = false;
+  }
+
+  async function  performOfflineLogin() {
+    if (!offlineUsername) return;
+    try {
+      currentAccount = await invoke("login_offline", { username: offlineUsername }) as Account;
+      isLoginModalOpen = false;
+    } catch (e) {
+      alert("Login failed: " + e);
     }
+  }
+
+  async function startMicrosoftLogin() {
+    loginMode = 'microsoft';
+    msLoginLoading = true;
+    try {
+      deviceCodeData = await invoke("start_microsoft_login") as DeviceCodeResponse;
+    } catch(e) {
+        alert("Failed to start Microsoft login: " + e);
+        loginMode = 'select'; // Go back
+    } finally {
+        msLoginLoading = false;
+    }
+  }
+  
+  async function completeMicrosoftLogin() {
+    if(!deviceCodeData) return;
+    msLoginLoading = true;
+    try {
+        currentAccount = await invoke("complete_microsoft_login", { deviceCode: deviceCodeData.device_code }) as Account;
+        isLoginModalOpen = false;
+    } catch(e) {
+        alert("Login failed: " + e + "\n\nMake sure you authorized the app in your browser.");
+    } finally {
+        msLoginLoading = false;
+    }
+  }
+
+  function openLink(url: string) {
+      // Use tauri open if possible, or window.open
+      invoke('start_microsoft_login').catch(() => window.open(url, '_blank'));
+      // Wait, we invoke 'start_microsoft_login' above already. 
+      // Just use window.open for the verification URI
+      window.open(url, '_blank');
   }
 
   async function startGame() {
     if (!currentAccount) {
       alert("Please login first!");
-      login();
+      openLoginModal();
       return;
     }
 
@@ -359,10 +417,10 @@
       <div class="flex items-center gap-4">
         <div
           class="flex items-center gap-4 cursor-pointer hover:opacity-80 transition-opacity"
-          onclick={login}
+          onclick={openLoginModal}
           role="button"
           tabindex="0"
-          onkeydown={(e) => e.key === "Enter" && login()}
+          onkeydown={(e) => e.key === "Enter" && openLoginModal()}
         >
           <div
             class="w-12 h-12 rounded bg-gradient-to-tr from-indigo-500 to-purple-500 shadow-lg flex items-center justify-center text-white font-bold text-xl overflow-hidden"
@@ -434,6 +492,78 @@
       </div>
     </div>
   </main>
+
+  <!-- Login Modal -->
+  {#if isLoginModalOpen}
+    <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div class="bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-6 w-full max-w-md animate-in fade-in zoom-in-0 duration-200">
+        
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-2xl font-bold text-white">Login</h2>
+          <button onclick={closeLoginModal} class="text-zinc-500 hover:text-white transition group">
+             ✕
+          </button>
+        </div>
+
+        {#if loginMode === 'select'}
+            <div class="space-y-4">
+                <button onclick={startMicrosoftLogin} class="w-full flex items-center justify-center gap-3 bg-[#2F2F2F] hover:bg-[#3F3F3F] text-white p-4 rounded-lg font-bold border border-transparent hover:border-zinc-500 transition-all group">
+                    <!-- Microsoft Logo SVG -->
+                    <svg class="w-5 h-5" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill="#f35325" d="M1 1h10v10H1z"/><path fill="#81bc06" d="M12 1h10v10H12z"/><path fill="#05a6f0" d="M1 12h10v10H1z"/><path fill="#ffba08" d="M12 12h10v10H12z"/></svg>
+                    Microsoft Account
+                </button>
+                
+                <div class="relative py-2">
+                    <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-zinc-700"></div></div>
+                    <div class="relative flex justify-center text-xs uppercase"><span class="bg-zinc-900 px-2 text-zinc-500">OR</span></div>
+                </div>
+
+                <div class="space-y-2">
+                    <input type="text" bind:value={offlineUsername} placeholder="Offline Username" class="w-full bg-zinc-950 border border-zinc-700 rounded p-3 text-white focus:border-indigo-500 outline-none" 
+                        onkeydown={(e) => e.key === 'Enter' && performOfflineLogin()} />
+                    <button onclick={performOfflineLogin} class="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 p-3 rounded font-medium transition-colors">
+                        Offline Login
+                    </button>
+                </div>
+            </div>
+
+        {:else if loginMode === 'microsoft'}
+            <div class="text-center">
+                {#if msLoginLoading && !deviceCodeData}
+                    <div class="py-8 text-zinc-400 animate-pulse">Starting login flow...</div>
+                {:else if deviceCodeData}
+                    <div class="space-y-4">
+                        <p class="text-sm text-zinc-400">1. Go to this URL:</p>
+                        <button onclick={() => deviceCodeData && openLink(deviceCodeData.verification_uri)} class="text-indigo-400 hover:text-indigo-300 underline break-all font-mono text-sm">
+                            {deviceCodeData.verification_uri}
+                        </button>
+                        
+                        <p class="text-sm text-zinc-400 mt-2">2. Enter this code:</p>
+                        <div class="bg-zinc-950 p-4 rounded border border-zinc-700 font-mono text-2xl tracking-widest text-center select-all cursor-pointer hover:border-indigo-500 transition-colors" onclick={() => navigator.clipboard.writeText(deviceCodeData?.user_code || '')}>
+                            {deviceCodeData.user_code}
+                        </div>
+                        <p class="text-xs text-zinc-500">Click code to copy</p>
+
+                        <div class="pt-4">
+                             {#if msLoginLoading}
+                                <button disabled class="w-full bg-indigo-600/50 text-white/50 p-3 rounded font-bold cursor-not-allowed">
+                                    Checking...
+                                </button>
+                             {:else}
+                                <button onclick={completeMicrosoftLogin} class="w-full bg-indigo-600 hover:bg-indigo-500 text-white p-3 rounded font-bold transition-transform active:scale-95 shadow-lg shadow-indigo-500/20">
+                                    I Have Authenticated
+                                </button>
+                             {/if}
+                        </div>
+                        
+                        <button onclick={() => loginMode = 'select'} class="text-xs text-zinc-500 hover:text-zinc-300 mt-4 underline">Cancel</button>
+                    </div>
+                {/if}
+            </div>
+        {/if}
+      </div>
+    </div>
+  {/if}
 
   <!-- Overlay Status (Toast) -->
   {#if status !== "Ready"}

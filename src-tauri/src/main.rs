@@ -296,7 +296,7 @@ async fn start_game(
     // 7c. Game Arguments
     // Replacements map
     let mut replacements = std::collections::HashMap::new();
-    replacements.insert("${auth_player_name}", account.username.clone());
+    replacements.insert("${auth_player_name}", account.username());
     replacements.insert("${version_name}", version_id.clone());
     replacements.insert("${game_directory}", game_dir.to_string_lossy().to_string());
     replacements.insert("${assets_root}", assets_dir.to_string_lossy().to_string());
@@ -304,8 +304,8 @@ async fn start_game(
         "${assets_index_name}",
         version_details.asset_index.id.clone(),
     );
-    replacements.insert("${auth_uuid}", account.uuid.clone());
-    replacements.insert("${auth_access_token}", "null".to_string()); // Offline
+    replacements.insert("${auth_uuid}", account.uuid());
+    replacements.insert("${auth_access_token}", account.access_token());
     replacements.insert("${user_type}", "mojang".to_string());
     replacements.insert("${version_type}", "release".to_string());
     replacements.insert("${user_properties}", "{}".to_string()); // Correctly pass empty JSON object for user properties
@@ -431,9 +431,9 @@ async fn get_versions() -> Result<Vec<core::manifest::Version>, String> {
 async fn login_offline(
     state: State<'_, core::auth::AccountState>,
     username: String,
-) -> Result<core::auth::OfflineAccount, String> {
+) -> Result<core::auth::Account, String> {
     let uuid = core::auth::generate_offline_uuid(&username);
-    let account = core::auth::OfflineAccount { username, uuid };
+    let account = core::auth::Account::Offline(core::auth::OfflineAccount { username, uuid });
 
     *state.active_account.lock().unwrap() = Some(account.clone());
     Ok(account)
@@ -442,7 +442,7 @@ async fn login_offline(
 #[tauri::command]
 async fn get_active_account(
     state: State<'_, core::auth::AccountState>,
-) -> Result<Option<core::auth::OfflineAccount>, String> {
+) -> Result<Option<core::auth::Account>, String> {
     Ok(state.active_account.lock().unwrap().clone())
 }
 
@@ -469,6 +469,49 @@ async fn save_settings(
     Ok(())
 }
 
+#[tauri::command]
+async fn start_microsoft_login() -> Result<core::auth::DeviceCodeResponse, String> {
+    core::auth::start_device_flow().await
+}
+
+#[tauri::command]
+async fn complete_microsoft_login(
+    state: State<'_, core::auth::AccountState>,
+    device_code: String,
+) -> Result<core::auth::Account, String> {
+    // 1. Poll (once) for token
+    let token_resp = core::auth::exchange_code_for_token(&device_code).await?;
+    
+    // 2. Xbox Live Auth
+    let (xbl_token, uhs) = core::auth::method_xbox_live(&token_resp.access_token).await?;
+    
+    // 3. XSTS Auth
+    let xsts_token = core::auth::method_xsts(&xbl_token).await?;
+    
+    // 4. Minecraft Auth
+    let mc_token = core::auth::login_minecraft(&xsts_token, &uhs).await?;
+    
+    // 5. Get Profile
+    let profile = core::auth::fetch_profile(&mc_token).await?;
+    
+    // 6. Create Account
+    let account = core::auth::Account::Microsoft(core::auth::MicrosoftAccount {
+        username: profile.name,
+        uuid: profile.id,
+        access_token: mc_token, // This is the MC Access Token
+        refresh_token: token_resp.refresh_token,
+        expires_at: (std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() + token_resp.expires_in) as i64,
+    });
+    
+    // 7. Save to state
+    *state.active_account.lock().unwrap() = Some(account.clone());
+    
+    Ok(account)
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -485,7 +528,9 @@ fn main() {
             get_active_account,
             logout,
             get_settings,
-            save_settings
+            save_settings,
+            start_microsoft_login,
+            complete_microsoft_login
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
