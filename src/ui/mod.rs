@@ -1,7 +1,12 @@
 use gtk::prelude::*;
 use gtk::{Button, Window, WindowType};
+use tokio::sync::mpsc::Sender;
 
-pub fn init() {
+pub enum UiEvent {
+    StartGame,
+}
+
+pub fn init(tx: Sender<UiEvent>) {
     if gtk::init().is_err() {
         println!("Failed to initialize GTK.");
         return;
@@ -12,8 +17,13 @@ pub fn init() {
     window.set_default_size(350, 70);
 
     let button = Button::with_label("开始游戏");
-    button.connect_clicked(|_| {
+    let tx_clone = tx.clone();
+    button.connect_clicked(move |_| {
         println!("开始游戏按钮被点击");
+        // Use blocking_send because we are in a synchronous callback
+        if let Err(e) = tx_clone.blocking_send(UiEvent::StartGame) {
+            eprintln!("Failed to send event: {}", e);
+        }
     });
 
     window.add(&button);
