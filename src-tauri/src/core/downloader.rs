@@ -1,8 +1,12 @@
 use std::path::PathBuf;
-use tokio::sync::mpsc;
 use serde::{Serialize, Deserialize};
+use tauri::{Emitter, Window};
+use futures::StreamExt;
+use tokio::io::AsyncWriteExt;
+use std::sync::Arc;
+use tokio::sync::Semaphore;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DownloadTask {
     pub url: String,
     pub path: PathBuf,
@@ -10,42 +14,115 @@ pub struct DownloadTask {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum DownloadProgress {
-    Started(String),
-    Progress { file: String, downloaded: u64, total: u64 },
-    Finished(String),
-    Error(String, String),
+pub struct ProgressEvent {
+    pub file: String,
+    pub downloaded: u64,
+    pub total: u64,
+    pub status: String, // "Downloading", "Verifying", "Finished", "Error"
 }
 
-pub struct Downloader {
-    sender: mpsc::Sender<DownloadProgress>,
-}
+pub async fn download_files(window: Window, tasks: Vec<DownloadTask>) -> Result<(), String> {
+    let client = reqwest::Client::new();
+    let semaphore = Arc::new(Semaphore::new(10)); // Max 10 concurrent downloads
+    
+    // Notify start (total files)
+    let _ = window.emit("download-start", tasks.len());
 
-impl Downloader {
-    pub fn new(sender: mpsc::Sender<DownloadProgress>) -> Self {
-        Self { sender }
-    }
-
-    pub async fn download(&self, tasks: Vec<DownloadTask>) {
-        // TODO: Implement parallel download with limits
-        // Use futures::stream::StreamExt::buffer_unordered
+    let tasks_stream = futures::stream::iter(tasks).map(|task| {
+        let client = client.clone();
+        let window = window.clone();
+        let semaphore = semaphore.clone();
         
-        for task in tasks {
-            if let Err(_) = self.sender.send(DownloadProgress::Started(task.url.clone())).await {
-                break;
+        async move {
+            let _permit = semaphore.acquire().await.unwrap();
+            let file_name = task.path.file_name().unwrap().to_string_lossy().to_string();
+
+            // 1. Check if file exists and verify SHA1
+            if task.path.exists() {
+                let _ = window.emit("download-progress", ProgressEvent {
+                    file: file_name.clone(),
+                    downloaded: 0,
+                    total: 0,
+                    status: "Verifying".into(),
+                });
+
+                if let Some(expected_sha1) = &task.sha1 {
+                    if let Ok(data) = tokio::fs::read(&task.path).await {
+                       let mut hasher = sha1::Sha1::new();
+                       use sha1::Digest;
+                       hasher.update(&data);
+                       let result = hex::encode(hasher.finalize());
+                       if &result == expected_sha1 {
+                           // Already valid
+                           let _ = window.emit("download-progress", ProgressEvent {
+                               file: file_name.clone(),
+                               downloaded: 0,
+                               total: 0,
+                               status: "Skipped".into(),
+                           });
+                           return Ok(());
+                       }
+                    }
+                }
             }
 
-            // Simulate download for now or implement basic
-            // Ensure directory exists
+            // 2. Download
             if let Some(parent) = task.path.parent() {
                  let _ = tokio::fs::create_dir_all(parent).await;
             }
 
-            // Real implementation would use reqwest here
-            
-            if let Err(_) = self.sender.send(DownloadProgress::Finished(task.url)).await {
-                break;
+            match client.get(&task.url).send().await {
+                Ok(resp) => {
+                    let total_size = resp.content_length().unwrap_or(0);
+                    let mut file = match tokio::fs::File::create(&task.path).await {
+                        Ok(f) => f,
+                        Err(e) => return Err(format!("Create file error: {}", e)),
+                    };
+                    
+                    // reqwest::Response::bytes_stream() is only available if the 'stream' feature is enabled
+                    // But we used 'blocking' and 'json'. We should add 'stream' feature to Cargo.toml?
+                    // Or just use chunk().
+                    // Actually, let's just create a loop if stream feature is missing or use chunk() manually if blocking is used?
+                    // Wait, we are in async context. 'reqwest' dependency in Cargo.toml has 'json', 'blocking'
+                    // We need 'stream' feature for .bytes_stream()
+                    
+                    // Let's use loop with chunk()
+                    loop {
+                        match resp.chunk().await {
+                            Ok(Some(chunk)) => {
+                                if let Err(e) = file.write_all(&chunk).await {
+                                    return Err(format!("Write error: {}", e));
+                                }
+                                downloaded += chunk.len() as u64;
+                                let _ = window.emit("download-progress", ProgressEvent {
+                                    file: file_name.clone(),
+                                    downloaded,
+                                    total: total_size,
+                                    status: "Downloading".into(),
+                                });
+                            }
+                            Ok(None) => break,
+                            Err(e) => return Err(format!("Download error: {}", e)),
+                        }
+                    }
+                },
+                Err(e) => return Err(format!("Request error: {}", e)),
             }
+
+            let _ = window.emit("download-progress", ProgressEvent {
+                file: file_name.clone(),
+                downloaded: 0,
+                total: 0,
+                status: "Finished".into(),
+            });
+
+            Ok(())
         }
-    }
+    });
+
+    // Buffer unordered to run concurrently
+    tasks_stream.buffer_unordered(10).collect::<Vec<Result<(), String>>>().await;
+    
+    let _ = window.emit("download-complete", ());
+    Ok(())
 }

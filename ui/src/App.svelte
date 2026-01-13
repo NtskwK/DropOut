@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
+  import DownloadMonitor from "./lib/DownloadMonitor.svelte";
 
   let status = "Ready";
 
@@ -48,8 +49,12 @@
   async function login() {
       if (currentAccount) {
          if (confirm("Logout " + currentAccount.username + "?")) {
-             currentAccount = null;
-             // Note: Backend state persists until restarted or overwritten.
+             try {
+                await invoke("logout");
+                currentAccount = null;
+             } catch(e) {
+                console.error("Logout failed:", e);
+             }
          }
          return;
       }
@@ -64,10 +69,21 @@
   }
 
   async function startGame() {
-    status = "Launching (Simulated)...";
-    console.log("Invoking start_game...");
+    if (!currentAccount) {
+        alert("Please login first!");
+        login();
+        return;
+    }
+
+    if (!selectedVersion) {
+        alert("Please select a version!");
+        return;
+    }
+
+    status = "Preparing to launch " + selectedVersion + "...";
+    console.log("Invoking start_game for version:", selectedVersion);
     try {
-        const msg = await invoke("start_game");
+        const msg = await invoke("start_game", { versionId: selectedVersion });
         console.log("Response:", msg);
         status = msg as string;
     } catch (e) {
@@ -110,6 +126,7 @@
 
   <!-- Main Content -->
   <main class="flex-1 flex flex-col relative min-w-0">
+    <DownloadMonitor />
     <!-- Top Bar (Window Controls Placeholder) -->
     <div class="h-8 w-full bg-zinc-900/50 absolute top-0 left-0 z-50 drag-region" data-tauri-drag-region>
         <!-- Windows/macOS controls would go here or be handled by OS -->
