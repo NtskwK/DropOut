@@ -14,287 +14,46 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
-permissions:
-  contents: write
-
 jobs:
-  linux:
-    name: Linux (${{ matrix.target }})
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-            deb_arch: amd64
-            rpm_arch: x86_64
-          - runner: ubuntu-22.04
-            target: i686-unknown-linux-gnu
-            deb_arch: i386
-            rpm_arch: i686
-          - runner: ubuntu-22.04
-            target: aarch64-unknown-linux-gnu
-            deb_arch: arm64
-            rpm_arch: aarch64
-          - runner: ubuntu-22.04
-            target: armv7-unknown-linux-gnueabihf
-            deb_arch: armhf
-            rpm_arch: armv7hl
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libglib2.0-dev libcairo2-dev libpango1.0-dev libatk1.0-dev libgdk-pixbuf2.0-dev libasound2-dev libudev-dev pkg-config alien
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Install Packaging Tools
-        run: cargo install cargo-deb
-
-      - name: Build Binary
-        run: cargo build --release --target ${{ matrix.target }}
-
-      - name: Build Deb
-        # cargo-deb needs the binary to be built first.
-        run: cargo deb --no-build --target ${{ matrix.target }} --output dropout-linux-${{ matrix.deb_arch }}.deb
-
-      - name: Build RPM (via Alien)
-        run: |
-          sudo alien -r dropout-linux-${{ matrix.deb_arch }}.deb --scripts 
-          # Alien generates a file like dropout-0.1.0-2.x86_64.rpm (version depends on Cargo.toml)
-          # We force move any rpm to the predictable name
-          mv dropout*.rpm dropout-linux-${{ matrix.rpm_arch }}.rpm
-
-      - name: Archive Binary
-        run: |
-          cd target/${{ matrix.target }}/release
-          tar -czf ../../../dropout-linux-${{ matrix.rpm_arch }}.tar.gz dropout
-          cd ../../..
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-artifacts-${{ matrix.target }}
-          path: |
-            dropout-linux-${{ matrix.deb_arch }}.deb
-            dropout-linux-${{ matrix.rpm_arch }}.rpm
-            dropout-linux-${{ matrix.rpm_arch }}.tar.gz
-
-  macos:
-    name: macOS (${{ matrix.target }})
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: macos-latest
-            target: x86_64-apple-darwin
-            arch_name: x86_64
-          - runner: macos-14
-            target: aarch64-apple-darwin
-            arch_name: aarch64
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Dependencies
-        run: |
-          brew install gtk+3 adwaita-icon-theme
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Build
-        env: 
-          PKG_CONFIG_ALLOW_CROSS: 1
-        run: cargo build --release --target ${{ matrix.target }}
-
-      - name: Archive
-        run: |
-          cd target/${{ matrix.target }}/release
-          tar -czf ../../../dropout-macos-${{ matrix.arch_name }}.tar.gz dropout
-          cd ../../..
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-artifacts-${{ matrix.target }}
-          path: dropout-macos-${{ matrix.arch_name }}.tar.gz
-
-
-  musllinux:
-    name: Musl Linux (${{ matrix.target }})
-    runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: x86_64-unknown-linux-musl
-            rpm_arch: x86_64
-
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-          
-      - name: Install Cross
-        run: cargo install cross
-        
-      - name: Build
-        run: cross build --release --target ${{ matrix.target }}
-
-      - name: Archive Binary
-        run: |
-          cd target/${{ matrix.target }}/release
-          tar -czf ../../../dropout-musllinux-${{ matrix.rpm_arch }}.tar.gz dropout
-          cd ../../..
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: musllinux-artifacts-${{ matrix.target }}
-          path: dropout-musllinux-${{ matrix.rpm_arch }}.tar.gz
-
-
-  windows:
-    name: Windows (${{ matrix.target }})
-    runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: x86_64-pc-windows-msvc
-            arch_name: x64
-          - target: i686-pc-windows-msvc
-            arch_name: x86
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Install GTK3 (Windows)
-        uses: actions/cache@v4
-        with:
-          path: C:\vcpkg\installed
-          key: ${{ runner.os }}-vcpkg-gtk3-${{ hashFiles('Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-vcpkg-gtk3-
-
-      - name: Setup Vcpkg and GTK
-        shell: pwsh
-        run: |
-           # NOTE: Building GTK3 on Windows via vcpkg takes significant time (>1h), often timing out free runners.
-           # Uncomment the next line if you have a powerful private runner or cache hit.
-           # vcpkg install gtk:x64-windows
-           
-           echo "Skipping compilation on Windows for this template due to timeout constraints on GitHub-hosted runners."
-           echo "For a robust Windows build, consider using a pre-built GTK binary distribution or a custom runner."
-           
-           # If you have pre-built binaries, you would copy them here and run cargo build.
-
-  create-release:
-    name: Create GitHub Release
-    needs: [linux, macos, musllinux, windows]
-    runs-on: ubuntu-latest
-    if: (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) || github.event_name == 'workflow_dispatch'
-
+  build-tauri:
     permissions:
       contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: "ubuntu-22.04"
+            args: ""
+          - platform: "macos-14" # Intel
+            args: "--target x86_64-apple-darwin"
+          - platform: "macos-latest" # M1/M2/M3
+            args: "--target aarch64-apple-darwin"
+          - platform: "windows-latest"
+            args: ""
 
+    runs-on: ${{ matrix.platform }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      - name: Install Dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libssl-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
-          fetch-depth: 0
-          ref: main
+          targets: ${{ matrix.platform == 'macos-14' && 'x86_64-apple-darwin' || matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || '' }}
 
-      - name: Generate CHANGELOG
-        id: changelog
-        uses: requarks/changelog-action@v1
-        with:
-          token: ${{ github.token }}
-          tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
-          includeInvalidCommits: true
-          changelogFilePath: CHANGELOG.md
-          writeToFile: true
-          useGitmojis: false
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: "*-artifacts-*"
-          path: artifacts/
-          merge-multiple: true
-
-      - name: Display files
-        run: ls -R artifacts/
-
-      - name: Create or Update Release
+      - name: Build Tauri App
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            VERSION="${{ github.event.inputs.tag_name }}"
-          else
-            VERSION="${{ github.ref_name }}"
-          fi
-
-          # Create generic Release Notes
-          cat > release_notes.md << 'EOF'
-          ## 📦 Installation
-
-          **Supported Platforms**
-          - 🐧 Linux: .deb, .rpm, .tar.gz (x86_64)
-          - 🍎 macOS: .tar.gz (Intel & Apple Silicon)
-          - 🪟 Windows: (Build skipped in standard CI due to GTK complexity)
-
-          ${{ steps.changelog.outputs.changes }}
-          EOF
-
-          # Check Release existence
-          if gh release view "${VERSION}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "Updating existing release..."
-            
-            # Delete old assets
-            ASSETS=$(gh release view "${VERSION}" --repo "${{ github.repository }}" --json assets -q '.assets[].name')
-            for asset in $ASSETS; do
-              gh release delete-asset "${VERSION}" "$asset" --repo "${{ github.repository }}" || true
-            done
-
-            gh release edit "${VERSION}" \
-              --repo "${{ github.repository }}" \
-              --notes-file release_notes.md
-            
-            gh release upload "${VERSION}" artifacts/* --repo "${{ github.repository }}"
-          else
-            echo "Creating new release..."
-            gh release create "${VERSION}" \
-              --repo "${{ github.repository }}" \
-              --notes-file release_notes.md \
-              --title "🚀 ${VERSION}" \
-              artifacts/*
-          fi
-
-      - name: Commit CHANGELOG.md
-        if: hashFiles('CHANGELOG.md') != ''
-        uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          branch: main
-          commit_message: "docs: update CHANGELOG.md for ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }} [skip ci]"
-          file_pattern: CHANGELOG.md
+          tagName: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
+          releaseName: "DropOut v__VERSION__"
+          releaseBody: "See the assets to download this version and install."
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
