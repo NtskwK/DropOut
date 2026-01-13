@@ -60,7 +60,7 @@
 
   // Login UI State
   let isLoginModalOpen = false;
-  let loginMode: 'select' | 'offline' | 'microsoft' = 'select';
+  let loginMode: "select" | "offline" | "microsoft" = "select";
   let offlineUsername = "";
   let deviceCodeData: DeviceCodeResponse | null = null;
   let msLoginLoading = false;
@@ -113,13 +113,13 @@
   function openLoginModal() {
     if (currentAccount) {
       if (confirm("Logout " + currentAccount.username + "?")) {
-        invoke("logout").then(() => currentAccount = null);
+        invoke("logout").then(() => (currentAccount = null));
       }
       return;
     }
     // Reset state
     isLoginModalOpen = true;
-    loginMode = 'select';
+    loginMode = "select";
     offlineUsername = "";
     deviceCodeData = null;
     msLoginLoading = false;
@@ -129,56 +129,110 @@
     isLoginModalOpen = false;
   }
 
-  async function  performOfflineLogin() {
+  async function performOfflineLogin() {
     if (!offlineUsername) return;
     try {
-      currentAccount = await invoke("login_offline", { username: offlineUsername }) as Account;
+      currentAccount = (await invoke("login_offline", {
+        username: offlineUsername,
+      })) as Account;
       isLoginModalOpen = false;
     } catch (e) {
       alert("Login failed: " + e);
     }
   }
 
-  async function startMicrosoftLogin() {
-    loginMode = 'microsoft';
-    msLoginLoading = true;
-    try {
-      deviceCodeData = await invoke("start_microsoft_login") as DeviceCodeResponse;
-      
-      // UX Improvements: Auto Copy & Auto Open
-      if (deviceCodeData) {
-          try {
-              await navigator.clipboard.writeText(deviceCodeData.user_code);
-              // alert("Code copied to clipboard: " + deviceCodeData.user_code); 
-          } catch (e) { console.error("Clipboard failed", e); }
-          
-          openLink(deviceCodeData.verification_uri);
-      }
+  let pollInterval: any;
 
-    } catch(e) {
-        alert("Failed to start Microsoft login: " + e);
-        loginMode = 'select'; // Go back
-    } finally {
-        msLoginLoading = false;
+  // Cleanup on destroy/close
+  function stopPolling() {
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
     }
   }
-  
-  async function completeMicrosoftLogin() {
-    if(!deviceCodeData) return;
+
+  async function startMicrosoftLogin() {
+    loginMode = "microsoft";
     msLoginLoading = true;
+    stopPolling(); // Ensure no duplicates
+
     try {
-        currentAccount = await invoke("complete_microsoft_login", { deviceCode: deviceCodeData.device_code }) as Account;
-        isLoginModalOpen = false;
-    } catch(e) {
-        alert("Login failed: " + e + "\n\nMake sure you authorized the app in your browser.");
-        // If it fails, users often want to retry checking without restarting the flow
+      deviceCodeData = (await invoke(
+        "start_microsoft_login"
+      )) as DeviceCodeResponse;
+
+      // UX Improvements: Auto Copy & Auto Open
+      if (deviceCodeData) {
+        try {
+          await navigator.clipboard.writeText(deviceCodeData.user_code);
+        } catch (e) {
+          console.error("Clipboard failed", e);
+        }
+
+        openLink(deviceCodeData.verification_uri);
+
+        // Start Polling
+        console.log("Starting polling for token...");
+        const intervalMs = (deviceCodeData.interval || 5) * 1000;
+        pollInterval = setInterval(
+          () => checkLoginStatus(deviceCodeData!.device_code),
+          intervalMs
+        );
+      }
+    } catch (e) {
+      alert("Failed to start Microsoft login: " + e);
+      loginMode = "select"; // Go back
     } finally {
-        msLoginLoading = false;
+      msLoginLoading = false;
     }
+  }
+
+  async function checkLoginStatus(deviceCode: string) {
+    console.log("Polling Microsoft API...");
+    try {
+      // This will fail with "authorization_pending" until user logs in
+      currentAccount = (await invoke("complete_microsoft_login", {
+        deviceCode,
+      })) as Account;
+
+      // If success:
+      console.log("Login Successful!", currentAccount);
+      stopPolling();
+      isLoginModalOpen = false;
+      status = "Welcome back, " + currentAccount.username;
+    } catch (e: any) {
+      const errStr = e.toString();
+      if (errStr.includes("authorization_pending")) {
+        console.log("Status: Waiting for user to authorize...");
+      } else {
+        // Real error
+        console.error("Polling Error:", errStr);
+        // Optional: Stop polling on fatal errors?
+        // expired_token should stop it.
+        if (
+          errStr.includes("expired_token") ||
+          errStr.includes("access_denied")
+        ) {
+          stopPolling();
+          alert("Login failed: " + errStr);
+          loginMode = "select";
+        }
+      }
+    }
+  }
+
+  // Clean up manual button to just be a status indicator or 'Retry Now'
+  async function completeMicrosoftLogin() {
+    if (deviceCodeData) checkLoginStatus(deviceCodeData.device_code);
+  }
+
+  function closeLoginModal() {
+    stopPolling();
+    isLoginModalOpen = false;
   }
 
   function openLink(url: string) {
-      open(url);
+    open(url);
   }
 
   async function startGame() {
@@ -342,79 +396,94 @@
         </div>
       {:else if currentView === "settings"}
         <div class="p-8 bg-zinc-900 h-full overflow-y-auto">
-            <h2 class="text-3xl font-bold mb-8">Settings</h2>
-            
-            <div class="space-y-6 max-w-2xl">
-                <!-- Java Path -->
-                <div class="bg-zinc-800/50 p-6 rounded-lg border border-zinc-700">
-                    <label class="block text-sm font-bold text-zinc-400 mb-2 uppercase tracking-wide">Java Executable Path</label>
-                    <div class="flex gap-2">
-                        <input 
-                            bind:value={settings.java_path} 
-                            type="text" 
-                            class="bg-zinc-950 text-white flex-1 p-3 rounded border border-zinc-700 focus:border-indigo-500 outline-none font-mono text-sm"
-                            placeholder="e.g. java, /usr/bin/java"
-                        />
-                    </div>
-                    <p class="text-xs text-zinc-500 mt-2">The command or path to the Java Runtime Environment.</p>
-                </div>
+          <h2 class="text-3xl font-bold mb-8">Settings</h2>
 
-                <!-- Memory -->
-                <div class="bg-zinc-800/50 p-6 rounded-lg border border-zinc-700">
-                    <label class="block text-sm font-bold text-zinc-400 mb-4 uppercase tracking-wide">Memory Allocation (RAM)</label>
-                    
-                    <div class="grid grid-cols-2 gap-6">
-                        <div>
-                            <label class="block text-xs text-zinc-500 mb-1">Minimum (MB)</label>
-                            <input 
-                                bind:value={settings.min_memory} 
-                                type="number" 
-                                class="bg-zinc-950 text-white w-full p-3 rounded border border-zinc-700 focus:border-indigo-500 outline-none"
-                            />
-                        </div>
-                        <div>
-                            <label class="block text-xs text-zinc-500 mb-1">Maximum (MB)</label>
-                            <input 
-                                bind:value={settings.max_memory} 
-                                type="number" 
-                                class="bg-zinc-950 text-white w-full p-3 rounded border border-zinc-700 focus:border-indigo-500 outline-none"
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Resolution -->
-                <div class="bg-zinc-800/50 p-6 rounded-lg border border-zinc-700">
-                    <label class="block text-sm font-bold text-zinc-400 mb-4 uppercase tracking-wide">Game Window Size</label>
-                    <div class="grid grid-cols-2 gap-6">
-                        <div>
-                            <label class="block text-xs text-zinc-500 mb-1">Width</label>
-                            <input 
-                                bind:value={settings.width} 
-                                type="number" 
-                                class="bg-zinc-950 text-white w-full p-3 rounded border border-zinc-700 focus:border-indigo-500 outline-none"
-                            />
-                        </div>
-                        <div>
-                            <label class="block text-xs text-zinc-500 mb-1">Height</label>
-                            <input 
-                                bind:value={settings.height} 
-                                type="number" 
-                                class="bg-zinc-950 text-white w-full p-3 rounded border border-zinc-700 focus:border-indigo-500 outline-none"
-                            />
-                        </div>
-                    </div>
-                </div>
-
-                <div class="pt-4">
-                    <button 
-                        onclick={saveSettings}
-                        class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded shadow-lg transition-transform active:scale-95"
-                    >
-                        Save Settings
-                    </button>
-                </div>
+          <div class="space-y-6 max-w-2xl">
+            <!-- Java Path -->
+            <div class="bg-zinc-800/50 p-6 rounded-lg border border-zinc-700">
+              <label
+                class="block text-sm font-bold text-zinc-400 mb-2 uppercase tracking-wide"
+                >Java Executable Path</label
+              >
+              <div class="flex gap-2">
+                <input
+                  bind:value={settings.java_path}
+                  type="text"
+                  class="bg-zinc-950 text-white flex-1 p-3 rounded border border-zinc-700 focus:border-indigo-500 outline-none font-mono text-sm"
+                  placeholder="e.g. java, /usr/bin/java"
+                />
+              </div>
+              <p class="text-xs text-zinc-500 mt-2">
+                The command or path to the Java Runtime Environment.
+              </p>
             </div>
+
+            <!-- Memory -->
+            <div class="bg-zinc-800/50 p-6 rounded-lg border border-zinc-700">
+              <label
+                class="block text-sm font-bold text-zinc-400 mb-4 uppercase tracking-wide"
+                >Memory Allocation (RAM)</label
+              >
+
+              <div class="grid grid-cols-2 gap-6">
+                <div>
+                  <label class="block text-xs text-zinc-500 mb-1"
+                    >Minimum (MB)</label
+                  >
+                  <input
+                    bind:value={settings.min_memory}
+                    type="number"
+                    class="bg-zinc-950 text-white w-full p-3 rounded border border-zinc-700 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label class="block text-xs text-zinc-500 mb-1"
+                    >Maximum (MB)</label
+                  >
+                  <input
+                    bind:value={settings.max_memory}
+                    type="number"
+                    class="bg-zinc-950 text-white w-full p-3 rounded border border-zinc-700 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Resolution -->
+            <div class="bg-zinc-800/50 p-6 rounded-lg border border-zinc-700">
+              <label
+                class="block text-sm font-bold text-zinc-400 mb-4 uppercase tracking-wide"
+                >Game Window Size</label
+              >
+              <div class="grid grid-cols-2 gap-6">
+                <div>
+                  <label class="block text-xs text-zinc-500 mb-1">Width</label>
+                  <input
+                    bind:value={settings.width}
+                    type="number"
+                    class="bg-zinc-950 text-white w-full p-3 rounded border border-zinc-700 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label class="block text-xs text-zinc-500 mb-1">Height</label>
+                  <input
+                    bind:value={settings.height}
+                    type="number"
+                    class="bg-zinc-950 text-white w-full p-3 rounded border border-zinc-700 focus:border-indigo-500 outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="pt-4">
+              <button
+                onclick={saveSettings}
+                class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded shadow-lg transition-transform active:scale-95"
+              >
+                Save Settings
+              </button>
+            </div>
+          </div>
         </div>
       {/if}
     </div>
@@ -504,71 +573,115 @@
 
   <!-- Login Modal -->
   {#if isLoginModalOpen}
-    <div class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div class="bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-6 w-full max-w-md animate-in fade-in zoom-in-0 duration-200">
-        
+    <div
+      class="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+    >
+      <div
+        class="bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-6 w-full max-w-md animate-in fade-in zoom-in-0 duration-200"
+      >
         <div class="flex justify-between items-center mb-6">
           <h2 class="text-2xl font-bold text-white">Login</h2>
-          <button onclick={closeLoginModal} class="text-zinc-500 hover:text-white transition group">
-             ✕
+          <button
+            onclick={closeLoginModal}
+            class="text-zinc-500 hover:text-white transition group"
+          >
+            ✕
           </button>
         </div>
 
-        {#if loginMode === 'select'}
-            <div class="space-y-4">
-                <button onclick={startMicrosoftLogin} class="w-full flex items-center justify-center gap-3 bg-[#2F2F2F] hover:bg-[#3F3F3F] text-white p-4 rounded-lg font-bold border border-transparent hover:border-zinc-500 transition-all group">
-                    <!-- Microsoft Logo SVG -->
-                    <svg class="w-5 h-5" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill="#f35325" d="M1 1h10v10H1z"/><path fill="#81bc06" d="M12 1h10v10H12z"/><path fill="#05a6f0" d="M1 12h10v10H1z"/><path fill="#ffba08" d="M12 12h10v10H12z"/></svg>
-                    Microsoft Account
+        {#if loginMode === "select"}
+          <div class="space-y-4">
+            <button
+              onclick={startMicrosoftLogin}
+              class="w-full flex items-center justify-center gap-3 bg-[#2F2F2F] hover:bg-[#3F3F3F] text-white p-4 rounded-lg font-bold border border-transparent hover:border-zinc-500 transition-all group"
+            >
+              <!-- Microsoft Logo SVG -->
+              <svg
+                class="w-5 h-5"
+                viewBox="0 0 23 23"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                ><path fill="#f35325" d="M1 1h10v10H1z" /><path
+                  fill="#81bc06"
+                  d="M12 1h10v10H12z"
+                /><path fill="#05a6f0" d="M1 12h10v10H1z" /><path
+                  fill="#ffba08"
+                  d="M12 12h10v10H12z"
+                /></svg
+              >
+              Microsoft Account
+            </button>
+
+            <div class="relative py-2">
+              <div class="absolute inset-0 flex items-center">
+                <div class="w-full border-t border-zinc-700"></div>
+              </div>
+              <div class="relative flex justify-center text-xs uppercase">
+                <span class="bg-zinc-900 px-2 text-zinc-500">OR</span>
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <input
+                type="text"
+                bind:value={offlineUsername}
+                placeholder="Offline Username"
+                class="w-full bg-zinc-950 border border-zinc-700 rounded p-3 text-white focus:border-indigo-500 outline-none"
+                onkeydown={(e) => e.key === "Enter" && performOfflineLogin()}
+              />
+              <button
+                onclick={performOfflineLogin}
+                class="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 p-3 rounded font-medium transition-colors"
+              >
+                Offline Login
+              </button>
+            </div>
+          </div>
+        {:else if loginMode === "microsoft"}
+          <div class="text-center">
+            {#if msLoginLoading && !deviceCodeData}
+              <div class="py-8 text-zinc-400 animate-pulse">
+                Starting login flow...
+              </div>
+            {:else if deviceCodeData}
+              <div class="space-y-4">
+                <p class="text-sm text-zinc-400">1. Go to this URL:</p>
+                <button
+                  onclick={() =>
+                    deviceCodeData && openLink(deviceCodeData.verification_uri)}
+                  class="text-indigo-400 hover:text-indigo-300 underline break-all font-mono text-sm"
+                >
+                  {deviceCodeData.verification_uri}
                 </button>
+
+                <p class="text-sm text-zinc-400 mt-2">2. Enter this code:</p>
+                <div
+                  class="bg-zinc-950 p-4 rounded border border-zinc-700 font-mono text-2xl tracking-widest text-center select-all cursor-pointer hover:border-indigo-500 transition-colors"
+                  onclick={() =>
+                    navigator.clipboard.writeText(
+                      deviceCodeData?.user_code || ""
+                    )}
+                >
+                  {deviceCodeData.user_code}
+                </div>
+                <p class="text-xs text-zinc-500">Click code to copy</p>
+
+                <div class="pt-6 space-y-3">
+                     <div class="flex flex-col items-center gap-3">
+                         <div class="animate-spin rounded-full h-6 w-6 border-2 border-zinc-600 border-t-indigo-500"></div>
+                         <span class="text-sm text-zinc-400 font-medium">Waiting for authorization...</span>
+                     </div>
+                     <p class="text-xs text-zinc-600">This window will update automatically.</p>
+                </div>
                 
-                <div class="relative py-2">
-                    <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-zinc-700"></div></div>
-                    <div class="relative flex justify-center text-xs uppercase"><span class="bg-zinc-900 px-2 text-zinc-500">OR</span></div>
-                </div>
-
-                <div class="space-y-2">
-                    <input type="text" bind:value={offlineUsername} placeholder="Offline Username" class="w-full bg-zinc-950 border border-zinc-700 rounded p-3 text-white focus:border-indigo-500 outline-none" 
-                        onkeydown={(e) => e.key === 'Enter' && performOfflineLogin()} />
-                    <button onclick={performOfflineLogin} class="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 p-3 rounded font-medium transition-colors">
-                        Offline Login
-                    </button>
-                </div>
-            </div>
-
-        {:else if loginMode === 'microsoft'}
-            <div class="text-center">
-                {#if msLoginLoading && !deviceCodeData}
-                    <div class="py-8 text-zinc-400 animate-pulse">Starting login flow...</div>
-                {:else if deviceCodeData}
-                    <div class="space-y-4">
-                        <p class="text-sm text-zinc-400">1. Go to this URL:</p>
-                        <button onclick={() => deviceCodeData && openLink(deviceCodeData.verification_uri)} class="text-indigo-400 hover:text-indigo-300 underline break-all font-mono text-sm">
-                            {deviceCodeData.verification_uri}
-                        </button>
-                        
-                        <p class="text-sm text-zinc-400 mt-2">2. Enter this code:</p>
-                        <div class="bg-zinc-950 p-4 rounded border border-zinc-700 font-mono text-2xl tracking-widest text-center select-all cursor-pointer hover:border-indigo-500 transition-colors" onclick={() => navigator.clipboard.writeText(deviceCodeData?.user_code || '')}>
-                            {deviceCodeData.user_code}
-                        </div>
-                        <p class="text-xs text-zinc-500">Click code to copy</p>
-
-                        <div class="pt-4">
-                             {#if msLoginLoading}
-                                <button disabled class="w-full bg-indigo-600/50 text-white/50 p-3 rounded font-bold cursor-not-allowed">
-                                    Checking...
-                                </button>
-                             {:else}
-                                <button onclick={completeMicrosoftLogin} class="w-full bg-indigo-600 hover:bg-indigo-500 text-white p-3 rounded font-bold transition-transform active:scale-95 shadow-lg shadow-indigo-500/20">
-                                    I Have Authenticated
-                                </button>
-                             {/if}
-                        </div>
-                        
-                        <button onclick={() => loginMode = 'select'} class="text-xs text-zinc-500 hover:text-zinc-300 mt-4 underline">Cancel</button>
-                    </div>
-                {/if}
-            </div>
+                <button
+                  onclick={() => { stopPolling(); loginMode = "select"; }}
+                  class="text-xs text-zinc-500 hover:text-zinc-300 mt-6 underline"
+                  >Cancel</button
+                >
+              </div>
+            {/if}
+          </div>
         {/if}
       </div>
     </div>

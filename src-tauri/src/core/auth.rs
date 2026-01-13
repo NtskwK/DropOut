@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use uuid::Uuid;
 
-// --- Account Types ---
 
 // Helper to create a client with a custom User-Agent
 // This is critical because Microsoft's WAF often blocks requests without a valid UA
@@ -58,8 +57,6 @@ pub struct MicrosoftAccount {
     pub expires_at: i64,
 }
 
-// --- State ---
-
 pub struct AccountState {
     pub active_account: Mutex<Option<Account>>,
 }
@@ -72,14 +69,10 @@ impl AccountState {
     }
 }
 
-// --- Offline Utils ---
-
 pub fn generate_offline_uuid(username: &str) -> String {
     let namespace = Uuid::NAMESPACE_OID;
     Uuid::new_v3(&namespace, username.as_bytes()).to_string()
 }
-
-// --- Microsoft Auth Logic ---
 
 // Constants
 const CLIENT_ID: &str = "fe165602-5410-4441-92f7-326e10a7cb82";
