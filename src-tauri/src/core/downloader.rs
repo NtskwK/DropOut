@@ -72,21 +72,14 @@ pub async fn download_files(window: Window, tasks: Vec<DownloadTask>) -> Result<
             }
 
             match client.get(&task.url).send().await {
-                Ok(resp) => {
+                Ok(mut resp) => {
                     let total_size = resp.content_length().unwrap_or(0);
                     let mut file = match tokio::fs::File::create(&task.path).await {
                         Ok(f) => f,
                         Err(e) => return Err(format!("Create file error: {}", e)),
                     };
                     
-                    // reqwest::Response::bytes_stream() is only available if the 'stream' feature is enabled
-                    // But we used 'blocking' and 'json'. We should add 'stream' feature to Cargo.toml?
-                    // Or just use chunk().
-                    // Actually, let's just create a loop if stream feature is missing or use chunk() manually if blocking is used?
-                    // Wait, we are in async context. 'reqwest' dependency in Cargo.toml has 'json', 'blocking'
-                    // We need 'stream' feature for .bytes_stream()
-                    
-                    // Let's use loop with chunk()
+                    let mut downloaded: u64 = 0;
                     loop {
                         match resp.chunk().await {
                             Ok(Some(chunk)) => {
