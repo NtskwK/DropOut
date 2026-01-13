@@ -4,6 +4,65 @@
 
   let status = "Ready";
 
+  interface Version {
+      id: string;
+      type: string;
+      url: string;
+      time: string;
+      releaseTime: string;
+  }
+
+  interface OfflineAccount {
+      username: string;
+      uuid: string;
+  }
+
+  let versions: Version[] = [];
+  let selectedVersion = "";
+  let currentAccount: OfflineAccount | null = null;
+
+  onMount(async () => {
+      checkAccount();
+      try {
+          versions = await invoke("get_versions");
+          if (versions.length > 0) {
+              // Find latest release or default to first
+              const latest = versions.find(v => v.type === 'release');
+              selectedVersion = latest ? latest.id : versions[0].id;
+          }
+      } catch (e) {
+          console.error("Failed to fetch versions:", e);
+          status = "Error fetching versions: " + e;
+      }
+  });
+
+  async function checkAccount() {
+      try {
+          const acc = await invoke("get_active_account");
+          currentAccount = acc as OfflineAccount | null;
+      } catch (e) {
+          console.error("Failed to check account:", e);
+      }
+  }
+
+  async function login() {
+      if (currentAccount) {
+         if (confirm("Logout " + currentAccount.username + "?")) {
+             currentAccount = null;
+             // Note: Backend state persists until restarted or overwritten.
+         }
+         return;
+      }
+      const username = prompt("Enter username for offline login:");
+      if (username) {
+          try {
+              currentAccount = await invoke("login_offline", { username });
+          } catch(e) {
+              alert("Login failed: " + e);
+          }
+      }
+  }
+
   async function startGame() {
     status = "Launching (Simulated)...";
     console.log("Invoking start_game...");
@@ -73,12 +132,18 @@
 
     <!-- Bottom Bar -->
     <div class="h-24 bg-zinc-900 border-t border-zinc-800 flex items-center px-8 justify-between z-20 shadow-2xl">
-        <div class="flex items-center gap-4">
-            <div class="w-12 h-12 rounded bg-gradient-to-tr from-indigo-500 to-purple-500 shadow-lg flex items-center justify-center text-white font-bold text-xl">S</div>
+        <div class="flex items-center gap-4 cursor-pointer hover:opacity-80 transition-opacity" onclick={login} role="button" tabindex="0" onkeydown={(e) => e.key === 'Enter' && login()}>
+            <div class="w-12 h-12 rounded bg-gradient-to-tr from-indigo-500 to-purple-500 shadow-lg flex items-center justify-center text-white font-bold text-xl overflow-hidden">
+                {#if currentAccount}
+                    <img src={`https://minotar.net/avatar/${currentAccount.username}/48`} alt={currentAccount.username} class="w-full h-full">
+                {:else}
+                    ?
+                {/if}
+            </div>
             <div>
-                <div class="font-bold text-white text-lg">Steve</div>
+                <div class="font-bold text-white text-lg">{currentAccount ? currentAccount.username : "Click to Login"}</div>
                 <div class="text-xs text-zinc-400 flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Online
+                    <span class="w-1.5 h-1.5 rounded-full {currentAccount ? 'bg-green-500' : 'bg-zinc-500'}"></span> {currentAccount ? 'Ready' : 'Guest'}
                 </div>
             </div>
         </div>
@@ -86,10 +151,14 @@
         <div class="flex items-center gap-4">
             <div class="flex flex-col items-end mr-2">
                  <label class="text-xs text-zinc-500 mb-1 uppercase font-bold tracking-wider">Version</label>
-                 <select class="bg-zinc-950 text-zinc-200 border border-zinc-700 rounded px-4 py-2 hover:border-zinc-500 transition-colors cursor-pointer outline-none focus:ring-1 focus:ring-indigo-500 w-48">
-                    <option>Latest Release (1.20.4)</option>
-                    <option>1.19.2</option>
-                    <option>1.8.9</option>
+                 <select bind:value={selectedVersion} class="bg-zinc-950 text-zinc-200 border border-zinc-700 rounded px-4 py-2 hover:border-zinc-500 transition-colors cursor-pointer outline-none focus:ring-1 focus:ring-indigo-500 w-48">
+                    {#if versions.length === 0}
+                        <option>Loading...</option>
+                    {:else}
+                        {#each versions as version}
+                            <option value={version.id}>{version.id} ({version.type})</option>
+                        {/each}
+                    {/if}
                 </select>
             </div>
            
