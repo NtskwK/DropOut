@@ -175,7 +175,7 @@ jobs:
           args: ${{ matrix.args }}
 
       - name: Fix AppImage for Wayland (Linux)
-        if: startsWith(matrix.platform, 'ubuntu') || matrix.platform == 'archlinux-latest'
+        if: (startsWith(matrix.platform, 'ubuntu') || matrix.wayland) && !startsWith(matrix.platform, 'macos') && !startsWith(matrix.platform, 'windows')
         run: |
           # Locate the generated AppImage
           APPIMAGE=$(find bundle -name "*.AppImage" -type f | head -1)
@@ -201,7 +201,7 @@ jobs:
         working-directory: src-tauri/target/release
 
       - name: Test AppImage on Wayland (Arch)
-        if: matrix.platform == 'archlinux-latest' && matrix.wayland
+        if: matrix.wayland
         run: |
           # Test that the AppImage can run in Wayland environment
           APPIMAGE=$(find bundle -name "*.AppImage" -type f | head -1)
