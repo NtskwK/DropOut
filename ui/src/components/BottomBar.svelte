@@ -54,10 +54,12 @@
   <div class="flex items-center gap-4">
     <div class="flex flex-col items-end mr-2">
       <label
+        for="version-select"
         class="text-xs text-zinc-500 mb-1 uppercase font-bold tracking-wider"
         >Version</label
       >
       <select
+        id="version-select"
         bind:value={gameState.selectedVersion}
         class="bg-zinc-950 text-zinc-200 border border-zinc-700 rounded px-4 py-2 hover:border-zinc-500 transition-colors cursor-pointer outline-none focus:ring-1 focus:ring-indigo-500 w-48"
       >

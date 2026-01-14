@@ -9,11 +9,13 @@
     <!-- Java Path -->
     <div class="bg-zinc-800/50 p-6 rounded-lg border border-zinc-700">
       <label
+        for="java-path"
         class="block text-sm font-bold text-zinc-400 mb-2 uppercase tracking-wide"
         >Java Executable Path</label
       >
       <div class="flex gap-2">
         <input
+          id="java-path"
           bind:value={settingsState.settings.java_path}
           type="text"
           class="bg-zinc-950 text-white flex-1 p-3 rounded border border-zinc-700 focus:border-indigo-500 outline-none font-mono text-sm"
@@ -58,27 +60,28 @@
 
     <!-- Memory -->
     <div class="bg-zinc-800/50 p-6 rounded-lg border border-zinc-700">
-      <label
+      <h3
         class="block text-sm font-bold text-zinc-400 mb-4 uppercase tracking-wide"
-        >Memory Allocation (RAM)</label
-      >
+        >Memory Allocation (RAM)</h3>
 
       <div class="grid grid-cols-2 gap-6">
         <div>
-          <label class="block text-xs text-zinc-500 mb-1"
+          <label for="min-memory" class="block text-xs text-zinc-500 mb-1"
             >Minimum (MB)</label
           >
           <input
+            id="min-memory"
             bind:value={settingsState.settings.min_memory}
             type="number"
             class="bg-zinc-950 text-white w-full p-3 rounded border border-zinc-700 focus:border-indigo-500 outline-none"
           />
         </div>
         <div>
-          <label class="block text-xs text-zinc-500 mb-1"
+          <label for="max-memory" class="block text-xs text-zinc-500 mb-1"
             >Maximum (MB)</label
           >
           <input
+            id="max-memory"
             bind:value={settingsState.settings.max_memory}
             type="number"
             class="bg-zinc-950 text-white w-full p-3 rounded border border-zinc-700 focus:border-indigo-500 outline-none"
@@ -89,22 +92,23 @@
 
     <!-- Resolution -->
     <div class="bg-zinc-800/50 p-6 rounded-lg border border-zinc-700">
-      <label
+      <h3
         class="block text-sm font-bold text-zinc-400 mb-4 uppercase tracking-wide"
-        >Game Window Size</label
-      >
+        >Game Window Size</h3>
       <div class="grid grid-cols-2 gap-6">
         <div>
-          <label class="block text-xs text-zinc-500 mb-1">Width</label>
+          <label for="window-width" class="block text-xs text-zinc-500 mb-1">Width</label>
           <input
+            id="window-width"
             bind:value={settingsState.settings.width}
             type="number"
             class="bg-zinc-950 text-white w-full p-3 rounded border border-zinc-700 focus:border-indigo-500 outline-none"
           />
         </div>
         <div>
-          <label class="block text-xs text-zinc-500 mb-1">Height</label>
+          <label for="window-height" class="block text-xs text-zinc-500 mb-1">Height</label>
           <input
+            id="window-height"
             bind:value={settingsState.settings.height}
             type="number"
             class="bg-zinc-950 text-white w-full p-3 rounded border border-zinc-700 focus:border-indigo-500 outline-none"
