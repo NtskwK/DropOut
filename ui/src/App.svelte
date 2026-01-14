@@ -382,9 +382,9 @@
     <!-- Background / Poster area -->
     <div class="flex-1 relative overflow-hidden group">
       {#if currentView === "home"}
-        <!-- Background Image -->
+        <!-- Background Image - Using gradient fallback -->
         <div
-          class="absolute inset-0 z-0 opacity-40 bg-[url('https://www.minecraft.net/content/dam/games/minecraft/key-art/Minecraft-KeyArt-02_800x450.jpg')] bg-cover bg-center transition-transform duration-[10s] ease-linear group-hover:scale-105"
+          class="absolute inset-0 z-0 opacity-60 bg-gradient-to-br from-emerald-900 via-zinc-900 to-indigo-950 transition-transform duration-[10s] ease-linear group-hover:scale-105"
         ></div>
         <div
           class="absolute inset-0 z-0 bg-gradient-to-t from-zinc-900 via-transparent to-black/50"
