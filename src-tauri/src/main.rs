@@ -236,6 +236,7 @@ async fn start_game(
                             url,
                             path: lib_path,
                             sha1: None, // Maven libraries often don't have SHA1 in the JSON
+                            sha256: None,
                         });
                     }
                 }
