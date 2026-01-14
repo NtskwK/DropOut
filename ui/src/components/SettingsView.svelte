@@ -132,6 +132,7 @@
           type="number"
           min="1"
           max="128"
+          step="1"
           class="bg-zinc-950 text-white w-full p-3 rounded border border-zinc-700 focus:border-indigo-500 outline-none"
         />
         <p class="text-xs text-zinc-500 mt-2">
