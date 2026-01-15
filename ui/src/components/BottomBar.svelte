@@ -67,12 +67,23 @@
           {authState.currentAccount ? authState.currentAccount.username : "Login Account"}
         </div>
         <div class="text-[10px] uppercase tracking-wider dark:text-zinc-500 text-gray-500 flex items-center gap-2">
-          <span
-            class="w-1.5 h-1.5 rounded-full {authState.currentAccount
-              ? 'bg-emerald-500'
-              : 'bg-zinc-400'}"
-          ></span>
-          {authState.currentAccount ? "Online" : "Guest"}
+          {#if authState.currentAccount}
+            {#if authState.currentAccount.type === "Microsoft"}
+              {#if authState.currentAccount.expires_at && authState.currentAccount.expires_at * 1000 < Date.now()}
+                <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                <span class="text-red-400">Expired</span>
+              {:else}
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                Online
+              {/if}
+            {:else}
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+              Offline
+            {/if}
+          {:else}
+            <span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
+            Guest
+          {/if}
         </div>
       </div>
     </div>
