@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::process::Stdio;
+use std::ptr::null;
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, State, Window}; // Added Emitter
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -158,7 +159,7 @@ async fn start_game(
         url: client_jar.url.clone(),
         path: client_path.clone(),
         sha1: client_jar.sha1.clone(),
-        sha256: client_jar.sha256.clone(),
+        sha256: None,
     });
 
     // --- Libraries ---
