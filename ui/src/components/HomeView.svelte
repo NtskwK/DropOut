@@ -22,9 +22,21 @@
     });
   }
   
+  function escapeHtml(unsafe: string) {
+      return unsafe
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+  }
+
   // Enhanced markdown parser with Emoji and GitHub specific features
   function formatBody(body: string) {
       if (!body) return '';
+      
+      // Escape HTML first to prevent XSS
+      let processed = escapeHtml(body);
       
       // Emoji map (common GitHub emojis)
       const emojiMap: Record<string, string> = {
@@ -89,7 +101,7 @@
 </div>
 
 <!-- Scrollable Container -->
-<div class="relative z-10 h-full {releasesState.isLoading || releasesState.releases.length === 0 ? 'overflow-hidden' : 'overflow-y-auto custom-scrollbar scroll-smooth'}">
+<div class="relative z-10 h-full {releasesState.isLoading ? 'overflow-hidden' : 'overflow-y-auto custom-scrollbar scroll-smooth'}">
   
   <!-- Hero Section (Full Height) -->
   <div class="min-h-full flex flex-col justify-end p-12 pb-32">

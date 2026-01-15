@@ -1,39 +1,42 @@
 # DropOut
 
-DropOut is a modern, fast, and efficient Minecraft launcher built with the latest web and system technologies. It leverages **Tauri v2** to deliver a lightweight application with a robust **Rust** backend and a reactive **Svelte 5** frontend.
+DropOut is a modern, minimalist, and efficient Minecraft launcher built with the latest web and system technologies. It leverages **Tauri v2** to deliver a lightweight application with a robust **Rust** backend and a reactive **Svelte 5** frontend.
 
 <div align="center">
-   <img width="700" src="assets/image.png" />
+   <img width="700" src="assets/image.png" alt="DropOut Launcher Interface" />
 </div>
 
 ## Features
 
-- **High Performance**: Built with Rust and Tauri for minimal resource usage.
-- **Microsoft Authentication**: Secure login support via official Xbox Live & Microsoft OAuth flows.
-- **Cross-Platform**: Native support for **Windows**, **Linux**, and **macOS**.
-- **Modern UI**: Clean and responsive interface built with Svelte 5 and Tailwind CSS 4.
+- **High Performance**: Built with Rust and Tauri for minimal resource usage and fast startup times.
+- **Modern Industrial UI**: A clean, distraction-free interface designed with **Svelte 5** and **Tailwind CSS 4**.
+- **Microsoft Authentication**: Secure login support via official Xbox Live & Microsoft OAuth flows (Device Code Flow).
+- **Mod Loader Support**:
+  - **Fabric**: Built-in installer and version management.
+  - **Forge**: Support for installing and launching Forge versions.
+- **Java Management**:
+  - Automatic detection of installed Java versions.
+  - Built-in downloader for Adoptium JDK/JRE.
+- **GitHub Integration**: View the latest project updates and changelogs directly from the launcher home screen.
 - **Game Management**:
-
-  - Version isolation and management
-  - Efficient asset and library downloading
-  - Custom Java arguments support
+  - Complete version isolation.
+  - Efficient concurrent asset and library downloading.
+  - Customizable memory allocation and resolution settings.
 
 ## Roadmap
 
-- [X] **Account Persistence** — Save login state between sessions
-- [X] **Token Refresh** — Auto-refresh expired Microsoft tokens
-- [X] **JVM Arguments Parsing** — Parse `arguments.jvm` from version.json for Mac M1/ARM support
-- [X] **Java Auto-detection** — Scan common paths for Java installations
-- [X] **Fabric Loader Support** — Install and launch with Fabric
-- [X] **Forge Loader Support** — Install and launch with Forge (basic support)
-- [X] **Version Filtering** — Filter by release/snapshot/modded in UI
+- [x] **Account Persistence** — Save login state between sessions
+- [x] **Token Refresh** — Auto-refresh expired Microsoft tokens
+- [x] **JVM Arguments Parsing** — Full support for `arguments.jvm` and `arguments.game` parsing
+- [x] **Java Auto-detection & Download** — Scan system and download Java runtimes
+- [x] **Fabric Loader Support** — Install and launch with Fabric
+- [x] **Forge Loader Support** — Install and launch with Forge
+- [x] **GitHub Releases Integration** — View changelogs in-app
 - [ ] **Instance/Profile System** — Multiple isolated game directories with different versions/mods
-- [ ] **Multi-account Support** — Switch between multiple accounts
+- [ ] **Multi-account Support** — Switch between multiple accounts seamlessly
 - [ ] **Custom Game Directory** — Allow users to choose game files location
 - [ ] **Launcher Auto-updater** — Self-update mechanism via Tauri updater plugin
-- [ ] **Mods Manager** — Enable/disable mods without deletion
-- [ ] **Resource Packs Manager** — Browse and manage resource packs
-- [ ] **Quilt Loader Support** — Install and launch with Quilt
+- [ ] **Mods Manager** — Enable/disable mods directly in the launcher
 - [ ] **Import from Other Launchers** — Migration tool for MultiMC/Prism profiles
 
 ## Installation
@@ -42,18 +45,18 @@ Download the latest release for your platform from the [Releases](https://github
 
 | Platform       | Files                   |
 | -------------- | ----------------------- |
-| Linux x86_64   | `.deb`, `.AppImage` |
-| Linux ARM64    | `.deb`, `.AppImage` |
-| macOS ARM64    | `.dmg`                |
-| Windows x86_64 | `.msi`, `.exe`      |
-| Windows ARM64  | `.msi`, `.exe`      |
+| Linux x86_64   | `.deb`, `.AppImage`     |
+| Linux ARM64    | `.deb`, `.AppImage`     |
+| macOS ARM64    | `.dmg`                  |
+| Windows x86_64 | `.msi`, `.exe`          |
+| Windows ARM64  | `.msi`, `.exe`          |
 
 ## Building from Source
 
 ### Prerequisites
 
 1. **Rust**: Install from [rustup.rs](https://rustup.rs/).
-2. **Node.js** & **pnpm**: Used for the frontend.
+2. **Node.js** & **pnpm**: Used for the frontend dependencies.
 3. **System Dependencies**: Follow the [Tauri Prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS.
 
 ### Steps
@@ -64,6 +67,7 @@ Download the latest release for your platform from the [Releases](https://github
    git clone https://github.com/HsiangNianian/DropOut.git
    cd DropOut
    ```
+
 2. **Install Frontend Dependencies**
 
    ```bash
@@ -71,12 +75,14 @@ Download the latest release for your platform from the [Releases](https://github
    pnpm install
    cd ..
    ```
+
 3. **Run in Development Mode**
 
    ```bash
    # This will start the frontend server and the Tauri app window
    cargo tauri dev
    ```
+
 4. **Build Release Version**
 
    ```bash
