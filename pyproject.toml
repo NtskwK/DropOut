@@ -18,3 +18,8 @@ path = "_version.py"
 [tool.hatch.build.targets.wheel]
 packages = ["."]
 only-include = ["_version.py"]
+
+[dependency-groups]
+dev = [
+    "prek>=0.2.28",
+]

@@ -13,6 +13,12 @@
   let preRef: HTMLPreElement | undefined = $state();
   let lineNumbersRef: HTMLDivElement | undefined = $state();
 
+  // Textarea attributes that TypeScript doesn't recognize but are valid HTML
+  const textareaAttrs = {
+    autocorrect: "off",
+    autocapitalize: "off"
+  } as Record<string, string>;
+
   // History State
   let history = $state([settingsState.rawConfigContent]);
   let historyIndex = $state(0);
@@ -291,8 +297,7 @@
                 onclick={() => showSettings = false}
                 class="absolute inset-0 w-full h-full p-4 bg-transparent text-transparent caret-white font-mono text-sm leading-relaxed resize-none focus:outline-none whitespace-pre overflow-auto z-10 selection:bg-indigo-500/30"
                 spellcheck="false"
-                autocorrect="off"
-                autocapitalize="off"
+                {...textareaAttrs}
             ></textarea>
         </div>
     </div>
