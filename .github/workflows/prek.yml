@@ -1,0 +1,22 @@
+name: Prek Checks
+
+on:
+  push:
+    branches: ["main", "dev"]
+  pull_request:
+    branches: ["main", "dev"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prek:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Run prek
+        uses: j178/prek-action@v1
+        with:
+          all_files: ${{ github.event_name == 'pull_request' }}
