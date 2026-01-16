@@ -1,4 +1,6 @@
 use serde::{Deserialize, Serialize};
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 use std::process::Command;
 use tauri::AppHandle;
@@ -636,10 +638,12 @@ fn get_java_candidates() -> Vec<PathBuf> {
     let mut candidates = Vec::new();
 
     // Check PATH first
-    if let Ok(output) = Command::new(if cfg!(windows) { "where" } else { "which" })
-        .arg("java")
-        .output()
-    {
+    let mut cmd = Command::new(if cfg!(windows) { "where" } else { "which" });
+    cmd.arg("java");
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(0x08000000);
+
+    if let Ok(output) = cmd.output() {
         if output.status.success() {
             let paths = String::from_utf8_lossy(&output.stdout);
             for line in paths.lines() {
@@ -788,7 +792,12 @@ fn get_java_candidates() -> Vec<PathBuf> {
 
 /// Check a specific Java installation and get its version info
 fn check_java_installation(path: &PathBuf) -> Option<JavaInstallation> {
-    let output = Command::new(path).arg("-version").output().ok()?;
+    let mut cmd = Command::new(path);
+    cmd.arg("-version");
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(0x08000000);
+
+    let output = cmd.output().ok()?;
 
     // Java outputs version info to stderr
     let version_output = String::from_utf8_lossy(&output.stderr);
