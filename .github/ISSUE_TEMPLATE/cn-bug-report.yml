@@ -169,12 +169,11 @@ body:
     attributes:
       label: 日志和错误信息
       description: |
-        **📝 TODO: 在此添加用户如何查找和生成日志文件的说明**
+        请提供相关的日志或错误信息以帮助诊断问题。
         
-        示例位置：
-        - Windows: 日志通常位于 `%APPDATA%/DropOut/logs/`
-        - macOS: 日志位于 `~/Library/Application Support/DropOut/logs/`
-        - Linux: 日志位于 `~/.config/DropOut/logs/`
+        **日志文件位置：**
+        - **macOS**: `$HOME/Library/Application Support/com.dropout.launcher/logs`
+        - **Linux**: `$HOME/.local/share/com.dropout.launcher`
         
         请在此粘贴相关的日志或错误信息。
         内容将自动格式化为代码。

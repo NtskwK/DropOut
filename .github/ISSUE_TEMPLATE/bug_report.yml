@@ -169,12 +169,11 @@ body:
     attributes:
       label: Logs and Error Messages
       description: |
-        **📝 TODO: Add instructions for users on how to find and generate log files**
+        Please provide relevant logs or error messages to help diagnose the issue.
         
-        Examples:
-        - For Windows: Logs are typically located in `%APPDATA%/DropOut/logs/`
-        - For macOS: Logs are in `~/Library/Application Support/DropOut/logs/`
-        - For Linux: Logs are in `~/.config/DropOut/logs/`
+        **Log file locations:**
+        - **macOS**: `$HOME/Library/Application Support/com.dropout.launcher/logs`
+        - **Linux**: `$HOME/.local/share/com.dropout.launcher`
         
         Please paste any relevant logs or error messages here.
         This will be automatically formatted as code.
