@@ -1,4 +1,4 @@
-export type ViewType = "home" | "versions" | "settings";
+export type ViewType = "home" | "versions" | "settings" | "guide";
 
 export interface Version {
   id: string;
@@ -26,6 +26,31 @@ export interface DeviceCodeResponse {
   message?: string;
 }
 
+export interface AssistantConfig {
+  enabled: boolean;
+  llm_provider: "ollama" | "openai";
+  // Ollama settings
+  ollama_endpoint: string;
+  ollama_model: string;
+  // OpenAI settings
+  openai_api_key?: string;
+  openai_endpoint: string;
+  openai_model: string;
+  // Common settings
+  system_prompt: string;
+  response_language: string;
+  // TTS settings
+  tts_enabled: boolean;
+  tts_provider: string;
+}
+
+export interface ModelInfo {
+  id: string;
+  name: string;
+  size?: string;
+  details?: string;
+}
+
 export interface LauncherConfig {
   min_memory: number;
   max_memory: number;
@@ -40,6 +65,7 @@ export interface LauncherConfig {
   theme: string;
   log_upload_service: "paste.rs" | "pastebin.com";
   pastebin_api_key?: string;
+  assistant: AssistantConfig;
 }
 
 export interface JavaInstallation {
