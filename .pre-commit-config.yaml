@@ -20,6 +20,20 @@ repos:
 
   - repo: local
     hooks:
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: bash -c 'cd src-tauri && cargo fmt --all'
+        language: system
+        files: ^src-tauri/.*\.rs$
+        pass_filenames: false
+
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: bash -c 'cd src-tauri && cargo clippy --all-targets --all-features -- -D warnings'
+        language: system
+        files: ^src-tauri/.*\.rs$
+        pass_filenames: false
+
       - id: oxlint
         name: oxlint (svelte/ts/js)
         entry: pnpm --dir ui run lint:fix
