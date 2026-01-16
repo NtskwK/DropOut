@@ -4,7 +4,7 @@ on:
   push:
     paths:
       - "ui/**"
-      - ".github/workflows/ui_check.yml"
+      - ".github/workflows/check.yml"
   pull_request:
     branches: ["main", "master", "dev"]
   workflow_dispatch:
