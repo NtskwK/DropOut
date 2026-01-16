@@ -20,6 +20,22 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
       
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update || true
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            libssl-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            pkg-config
+      
       - name: Run prek (auto-fix)
         id: prek
         uses: j178/prek-action@v1
