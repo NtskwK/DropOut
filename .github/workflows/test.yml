@@ -112,9 +112,9 @@ jobs:
         with:
           name: dropout-linux-${{ matrix.wayland && 'arch' || 'ubuntu' }}-${{ steps.slug.outputs.sha8 }}
           path: |
-            src-tauri/target/debug/bundle/appimage/*.AppImage
-            src-tauri/target/debug/bundle/deb/*.deb
-            src-tauri/target/debug/dropout
+            target/debug/bundle/appimage/*.AppImage
+            target/debug/bundle/deb/*.deb
+            target/debug/dropout
           retention-days: 5
 
       - name: Upload Artifact (Windows)
@@ -123,9 +123,9 @@ jobs:
         with:
           name: dropout-windows-${{ steps.slug.outputs.sha8 }}
           path: |
-            src-tauri/target/debug/bundle/msi/*.msi
-            src-tauri/target/debug/bundle/nsis/*.exe
-            src-tauri/target/debug/dropout.exe
+            target/debug/bundle/msi/*.msi
+            target/debug/bundle/nsis/*.exe
+            target/debug/dropout.exe
           retention-days: 5
 
       - name: Upload Artifact (macOS)
@@ -134,6 +134,6 @@ jobs:
         with:
           name: dropout-macos-${{ steps.slug.outputs.sha8 }}
           path: |
-            src-tauri/target/debug/bundle/dmg/*.dmg
-            src-tauri/target/debug/bundle/macos/DropOut.app
+            target/debug/bundle/dmg/*.dmg
+            target/debug/bundle/macos/DropOut.app
           retention-days: 5

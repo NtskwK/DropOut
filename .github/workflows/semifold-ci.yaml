@@ -25,11 +25,11 @@ jobs:
             target: "x86_64-unknown-linux-gnu"
             args: "--target x86_64-unknown-linux-gnu"
           - platform: "ubuntu-24.04-arm"
-            name: "Linux Arm64"
+            name: "Linux arm64"
             target: "aarch64-unknown-linux-gnu"
             args: "--target aarch64-unknown-linux-gnu"
           - platform: "macos-latest"
-            name: "macOS Arm64"
+            name: "macOS arm64"
             target: "aarch64-apple-darwin"
             args: "--target aarch64-apple-darwin"
           - platform: "windows-latest"
@@ -37,7 +37,7 @@ jobs:
             target: "x86_64-pc-windows-msvc"
             args: "--target x86_64-pc-windows-msvc"
           - platform: "windows-11-arm"
-            name: "Windows Arm64"
+            name: "Windows arm64"
             target: "aarch64-pc-windows-msvc"
             args: "--target aarch64-pc-windows-msvc"
 
@@ -130,7 +130,7 @@ jobs:
         working-directory: target/release
 
       - name: Upload Artifact (Linux)
-        if: runner.os == 'Linux' && github.event_name == 'workflow_dispatch'
+        if: runner.os == 'Linux'
         uses: actions/upload-artifact@v6
         with:
           name: dropout-linux-${{ matrix.wayland && 'arch' || 'ubuntu' }}-${{ steps.slug.outputs.sha8 }}
@@ -141,7 +141,7 @@ jobs:
           retention-days: 1
 
       - name: Upload Artifact (Windows)
-        if: runner.os == 'Windows' && github.event_name == 'workflow_dispatch'
+        if: runner.os == 'Windows'
         uses: actions/upload-artifact@v6
         with:
           name: dropout-windows-${{ steps.slug.outputs.sha8 }}
@@ -152,7 +152,7 @@ jobs:
           retention-days: 1
 
       - name: Upload Artifact (macOS)
-        if: runner.os == 'macOS' && github.event_name == 'workflow_dispatch'
+        if: runner.os == 'macOS'
         uses: actions/upload-artifact@v6
         with:
           name: dropout-macos-${{ steps.slug.outputs.sha8 }}
@@ -161,19 +161,27 @@ jobs:
             target/debug/bundle/macos/DropOut.app
           retention-days: 1
 
-  # release:
-  #   name: Release
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v6
-  #       with:
-  #         fetch-depth: 0
-  #     - name: Setup Semifold
-  #       uses: noctisynth/setup-semifold@main
-  #     - name: Semifold CI
-  #       run: semifold ci
-  #       env:
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  #         CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-  #         NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    needs: [build-tauri]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Setup Semifold
+        uses: noctisynth/setup-semifold@main
+      - name: Download build artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: artifacts/
+          merge-multiple: true
+      - name: List artifacts
+        run: ls -R artifacts/
+      # - name: Semifold CI
+      #   run: semifold ci
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      #     NODE_AUTH_TOKEN: ${{ secrets.NODE_AUTH_TOKEN }}
