@@ -9,11 +9,6 @@ fix = "Bug Fixes"
 perf = "Performance Improvements"
 refactor = "Refactors"
 
-[packages."@dropout/dropout"]
-path = "."
-resolver = "nodejs"
-version-mode = { pre-release.tag = "alpha" }
-
 [packages."@dropout/ui"]
 path = "ui"
 resolver = "nodejs"
