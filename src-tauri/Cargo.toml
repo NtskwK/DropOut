@@ -1,6 +1,6 @@
 [package]
 name = "dropout"
-version = "0.1.26"
+version = "0.2.0-alpha"
 edition = "2021"
 authors = ["HsiangNianian"]
 description = "The DropOut Minecraft Game Launcher"
@@ -35,12 +35,6 @@ regex = "1.12.2"
 
 [build-dependencies]
 tauri-build = { version = "2.0", features = [] }
-
-[profile.dev]
-opt-level = 0
-
-[profile.release]
-opt-level = 3
 
 [package.metadata.deb]
 depends = "libgtk-3-0"
