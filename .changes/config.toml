@@ -31,14 +31,6 @@ command = "cargo"
 args = ["publish"]
 
 [[resolver.rust.post-version]]
-command = "cargo"
-args = [
-    "generate-lockfile",
-    "--offline",
-]
-dry_run = true
-
-[[resolver.rust.post-version]]
 command = "pnpm"
 args = ["bump-tauri"]
 
