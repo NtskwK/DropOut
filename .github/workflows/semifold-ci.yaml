@@ -6,6 +6,7 @@ on:
     branches: [main]
 
 env:
+  CARGO_TERM_COLOR: always
   CLICOLOR_FORCE: 1
 
 permissions:
@@ -135,9 +136,8 @@ jobs:
         with:
           name: dropout-linux-${{ matrix.wayland && 'arch' || 'ubuntu' }}-${{ steps.slug.outputs.sha8 }}
           path: |
-            target/debug/bundle/appimage/*.AppImage
-            target/debug/bundle/deb/*.deb
-            target/debug/dropout
+            target/release/bundle/appimage/*.AppImage
+            target/release/bundle/deb/*.deb
           retention-days: 1
 
       - name: Upload Artifact (Windows)
@@ -146,9 +146,8 @@ jobs:
         with:
           name: dropout-windows-${{ steps.slug.outputs.sha8 }}
           path: |
-            target/debug/bundle/msi/*.msi
-            target/debug/bundle/nsis/*.exe
-            target/debug/dropout.exe
+            target/release/bundle/msi/*.msi
+            target/release/bundle/nsis/*.exe
           retention-days: 1
 
       - name: Upload Artifact (macOS)
@@ -157,8 +156,8 @@ jobs:
         with:
           name: dropout-macos-${{ steps.slug.outputs.sha8 }}
           path: |
-            target/debug/bundle/dmg/*.dmg
-            target/debug/bundle/macos/DropOut.app
+            target/release/bundle/dmg/*.dmg
+            target/release/bundle/macos/DropOut.app
           retention-days: 1
 
   release:
