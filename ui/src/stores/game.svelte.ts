@@ -8,13 +8,31 @@ export class GameState {
   versions = $state<Version[]>([]);
   selectedVersion = $state("");
 
+  constructor() {
+    // Refresh versions when active instance changes
+    $effect(() => {
+      if (instancesState.activeInstanceId) {
+        this.loadVersions();
+      } else {
+        this.versions = [];
+      }
+    });
+  }
+
   get latestRelease() {
     return this.versions.find((v) => v.type === "release");
   }
 
   async loadVersions() {
+    if (!instancesState.activeInstanceId) {
+      this.versions = [];
+      return;
+    }
+
     try {
-      this.versions = await invoke<Version[]>("get_versions");
+      this.versions = await invoke<Version[]>("get_versions", {
+        instanceId: instancesState.activeInstanceId,
+      });
       // Don't auto-select version here - let BottomBar handle version selection
       // based on installed versions only
     } catch (e) {

@@ -879,12 +879,14 @@ fn parse_jvm_arguments(
 }
 
 #[tauri::command]
-async fn get_versions(window: Window) -> Result<Vec<core::manifest::Version>, String> {
-    let app_handle = window.app_handle();
-    let game_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+async fn get_versions(
+    _window: Window,
+    instance_state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
+) -> Result<Vec<core::manifest::Version>, String> {
+    let game_dir = instance_state
+        .get_instance_game_dir(&instance_id)
+        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
 
     match core::manifest::fetch_version_manifest().await {
         Ok(manifest) => {
@@ -1595,6 +1597,13 @@ async fn install_fabric(
         format!("Fabric installed successfully: {}", result.id)
     );
 
+    // Update Instance's mod_loader metadata
+    if let Some(mut instance) = instance_state.get_instance(&instance_id) {
+        instance.mod_loader = Some("fabric".to_string());
+        instance.mod_loader_version = Some(loader_version);
+        instance_state.update_instance(instance)?;
+    }
+
     // Emit event to notify frontend
     let _ = window.emit("fabric-installed", &result.id);
 
@@ -1668,6 +1677,31 @@ async fn delete_version(
     tokio::fs::remove_dir_all(&version_dir)
         .await
         .map_err(|e| format!("Failed to delete version: {}", e))?;
+
+    // Clean up Instance state if necessary
+    if let Some(mut instance) = instance_state.get_instance(&instance_id) {
+        let mut updated = false;
+
+        // If deleted version is the current selected version
+        if instance.version_id.as_ref() == Some(&version_id) {
+            instance.version_id = None;
+            updated = true;
+        }
+
+        // If deleted version is a modded version, clear mod_loader
+        if (version_id.starts_with("fabric-loader-")
+            && instance.mod_loader == Some("fabric".to_string()))
+            || (version_id.contains("-forge-") && instance.mod_loader == Some("forge".to_string()))
+        {
+            instance.mod_loader = None;
+            instance.mod_loader_version = None;
+            updated = true;
+        }
+
+        if updated {
+            instance_state.update_instance(instance)?;
+        }
+    }
 
     // Emit event to notify frontend
     let _ = window.emit("version-deleted", &version_id);
@@ -1948,7 +1982,10 @@ async fn install_forge(
 
     // Check if the version JSON already exists
     let version_id = core::forge::generate_version_id(&game_version, &forge_version);
-    let json_path = game_dir.join("versions").join(&version_id).join(format!("{}.json", version_id));
+    let json_path = game_dir
+        .join("versions")
+        .join(&version_id)
+        .join(format!("{}.json", version_id));
 
     let result = if json_path.exists() {
         // Version JSON was created by the installer, load it
@@ -1973,6 +2010,13 @@ async fn install_forge(
         window,
         format!("Forge installed successfully: {}", result.id)
     );
+
+    // Update Instance's mod_loader metadata
+    if let Some(mut instance) = instance_state.get_instance(&instance_id) {
+        instance.mod_loader = Some("forge".to_string());
+        instance.mod_loader_version = Some(forge_version);
+        instance_state.update_instance(instance)?;
+    }
 
     // Emit event to notify frontend
     let _ = window.emit("forge-installed", &result.id);
