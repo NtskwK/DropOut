@@ -25,6 +25,16 @@ pub struct Instance {
     pub notes: Option<String>,              // 备注（可选）
     pub mod_loader: Option<String>,         // 模组加载器类型："fabric", "forge", "vanilla"
     pub mod_loader_version: Option<String>, // 模组加载器版本
+    pub jvm_args_override: Option<String>,  // JVM参数覆盖（可选）
+    #[serde(default)]
+    pub memory_override: Option<MemoryOverride>, // 内存设置覆盖（可选）
+}
+
+/// Memory settings override for an instance
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MemoryOverride {
+    pub min: u32, // MB
+    pub max: u32, // MB
 }
 
 /// Configuration for all instances
@@ -99,6 +109,8 @@ impl InstanceState {
             notes: None,
             mod_loader: Some("vanilla".to_string()),
             mod_loader_version: None,
+            jvm_args_override: None,
+            memory_override: None,
         };
 
         let mut config = self.instances.lock().unwrap();
@@ -253,6 +265,8 @@ impl InstanceState {
                 .unwrap()
                 .as_secs() as i64,
             last_played: None,
+            jvm_args_override: source_instance.jvm_args_override.clone(),
+            memory_override: source_instance.memory_override.clone(),
         };
 
         self.update_instance(new_instance.clone())?;

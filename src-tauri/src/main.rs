@@ -1,7 +1,7 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::process::Stdio;
 use std::sync::Mutex;
 use tauri::{Emitter, Manager, State, Window}; // Added Emitter
@@ -854,6 +854,12 @@ async fn start_game(
         }
     });
 
+    // Update instance's version_id to track last launched version
+    if let Some(mut instance) = instance_state.get_instance(&instance_id) {
+        instance.version_id = Some(version_id.clone());
+        let _ = instance_state.update_instance(instance);
+    }
+
     Ok(format!("Launched Minecraft {} successfully!", version_id))
 }
 
@@ -1693,10 +1699,11 @@ async fn install_fabric(
         format!("Fabric installed successfully: {}", result.id)
     );
 
-    // Update Instance's mod_loader metadata
+    // Update Instance's mod_loader metadata and version_id
     if let Some(mut instance) = instance_state.get_instance(&instance_id) {
         instance.mod_loader = Some("fabric".to_string());
-        instance.mod_loader_version = Some(loader_version);
+        instance.mod_loader_version = Some(loader_version.clone());
+        instance.version_id = Some(result.id.clone());
         instance_state.update_instance(instance)?;
     }
 
@@ -2107,10 +2114,11 @@ async fn install_forge(
         format!("Forge installed successfully: {}", result.id)
     );
 
-    // Update Instance's mod_loader metadata
+    // Update Instance's mod_loader metadata and version_id
     if let Some(mut instance) = instance_state.get_instance(&instance_id) {
         instance.mod_loader = Some("forge".to_string());
-        instance.mod_loader_version = Some(forge_version);
+        instance.mod_loader_version = Some(forge_version.clone());
+        instance.version_id = Some(result.id.clone());
         instance_state.update_instance(instance)?;
     }
 
@@ -2422,6 +2430,110 @@ async fn migrate_shared_caches(
     })
 }
 
+/// File information for instance file browser
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct FileInfo {
+    name: String,
+    path: String,
+    is_directory: bool,
+    size: u64,
+    modified: i64,
+}
+
+/// List files in an instance subdirectory (mods, resourcepacks, shaderpacks, saves, screenshots)
+#[tauri::command]
+async fn list_instance_directory(
+    instance_state: State<'_, core::instance::InstanceState>,
+    instance_id: String,
+    folder: String, // "mods" | "resourcepacks" | "shaderpacks" | "saves" | "screenshots"
+) -> Result<Vec<FileInfo>, String> {
+    let game_dir = instance_state
+        .get_instance_game_dir(&instance_id)
+        .ok_or_else(|| format!("Instance {} not found", instance_id))?;
+
+    let target_dir = game_dir.join(&folder);
+    if !target_dir.exists() {
+        tokio::fs::create_dir_all(&target_dir)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+
+    let mut files = Vec::new();
+    let mut entries = tokio::fs::read_dir(&target_dir)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    while let Some(entry) = entries.next_entry().await.map_err(|e| e.to_string())? {
+        let metadata = entry.metadata().await.map_err(|e| e.to_string())?;
+        let modified = metadata
+            .modified()
+            .ok()
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+
+        files.push(FileInfo {
+            name: entry.file_name().to_string_lossy().to_string(),
+            path: entry.path().to_string_lossy().to_string(),
+            is_directory: metadata.is_dir(),
+            size: metadata.len(),
+            modified,
+        });
+    }
+
+    // Sort: directories first, then by name
+    files.sort_by(|a, b| {
+        b.is_directory
+            .cmp(&a.is_directory)
+            .then(a.name.to_lowercase().cmp(&b.name.to_lowercase()))
+    });
+
+    Ok(files)
+}
+
+/// Delete a file in an instance directory
+#[tauri::command]
+async fn delete_instance_file(path: String) -> Result<(), String> {
+    let path_buf = std::path::PathBuf::from(&path);
+    if path_buf.is_dir() {
+        tokio::fs::remove_dir_all(&path_buf)
+            .await
+            .map_err(|e| e.to_string())?;
+    } else {
+        tokio::fs::remove_file(&path_buf)
+            .await
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// Open instance directory in system file explorer
+#[tauri::command]
+async fn open_file_explorer(path: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_fs::init())
@@ -2529,7 +2641,10 @@ fn main() {
             set_active_instance,
             get_active_instance,
             duplicate_instance,
-            migrate_shared_caches
+            migrate_shared_caches,
+            list_instance_directory,
+            delete_instance_file,
+            open_file_explorer
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

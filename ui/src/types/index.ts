@@ -214,4 +214,11 @@ export interface Instance {
   notes?: string;
   mod_loader?: string;
   mod_loader_version?: string;
+  jvm_args_override?: string;
+  memory_override?: MemoryOverride;
+}
+
+export interface MemoryOverride {
+  min: number; // MB
+  max: number; // MB
 }
