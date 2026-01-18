@@ -9,11 +9,14 @@
 
 use serde::{Deserialize, Serialize};
 use std::error::Error;
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 
 const FORGE_PROMOTIONS_URL: &str =
     "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json";
 const FORGE_MAVEN_URL: &str = "https://maven.minecraftforge.net/";
+const FORGE_FILES_URL: &str = "https://files.minecraftforge.net/";
 
 /// Represents a Forge version entry.
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -43,6 +46,7 @@ pub struct InstalledForgeVersion {
 
 /// Forge installer manifest structure (from version.json inside installer JAR)
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct ForgeInstallerManifest {
     id: Option<String>,
     #[serde(rename = "inheritsFrom")]
@@ -177,36 +181,102 @@ pub fn generate_version_id(game_version: &str, forge_version: &str) -> String {
     format!("{}-forge-{}", game_version, forge_version)
 }
 
+/// Try to download the Forge installer from multiple possible URL formats.
+/// This is necessary because older Forge versions use different URL patterns.
+async fn try_download_forge_installer(
+    game_version: &str,
+    forge_version: &str,
+) -> Result<bytes::Bytes, Box<dyn Error + Send + Sync>> {
+    let forge_full = format!("{}-{}", game_version, forge_version);
+    // For older versions (like 1.7.10), the URL needs an additional -{game_version} suffix
+    let forge_full_with_suffix = format!("{}-{}", forge_full, game_version);
+
+    // Try different URL formats for different Forge versions
+    // Order matters: try most common formats first, then fallback to alternatives
+    let url_patterns = vec![
+        // Standard Maven format (for modern versions): forge/{game_version}-{forge_version}/forge-{game_version}-{forge_version}-installer.jar
+        format!(
+            "{}net/minecraftforge/forge/{}/forge-{}-installer.jar",
+            FORGE_MAVEN_URL, forge_full, forge_full
+        ),
+        // Old version format with suffix (for versions like 1.7.10): forge/{game_version}-{forge_version}-{game_version}/forge-{game_version}-{forge_version}-{game_version}-installer.jar
+        // This is the correct format for 1.7.10 and similar old versions
+        format!(
+            "{}net/minecraftforge/forge/{}/forge-{}-installer.jar",
+            FORGE_MAVEN_URL, forge_full_with_suffix, forge_full_with_suffix
+        ),
+        // Files.minecraftforge.net format with suffix (for old versions like 1.7.10)
+        format!(
+            "{}maven/net/minecraftforge/forge/{}/forge-{}-installer.jar",
+            FORGE_FILES_URL, forge_full_with_suffix, forge_full_with_suffix
+        ),
+        // Files.minecraftforge.net standard format (for older versions)
+        format!(
+            "{}maven/net/minecraftforge/forge/{}/forge-{}-installer.jar",
+            FORGE_FILES_URL, forge_full, forge_full
+        ),
+        // Alternative Maven format
+        format!(
+            "{}net/minecraftforge/forge/{}-{}/forge-{}-{}-installer.jar",
+            FORGE_MAVEN_URL, game_version, forge_version, game_version, forge_version
+        ),
+        // Alternative files format
+        format!(
+            "{}maven/net/minecraftforge/forge/{}-{}/forge-{}-{}-installer.jar",
+            FORGE_FILES_URL, game_version, forge_version, game_version, forge_version
+        ),
+    ];
+
+    let mut last_error = None;
+    for url in url_patterns {
+        println!("Trying Forge installer URL: {}", url);
+        match reqwest::get(&url).await {
+            Ok(response) => {
+                if response.status().is_success() {
+                    match response.bytes().await {
+                        Ok(bytes) => {
+                            println!("Successfully downloaded Forge installer from: {}", url);
+                            return Ok(bytes);
+                        }
+                        Err(e) => {
+                            last_error = Some(format!("Failed to read response body: {}", e));
+                            continue;
+                        }
+                    }
+                } else {
+                    last_error = Some(format!("HTTP {}: {}", response.status(), url));
+                    continue;
+                }
+            }
+            Err(e) => {
+                last_error = Some(format!("Request failed: {}", e));
+                continue;
+            }
+        }
+    }
+
+    Err(format!(
+        "Failed to download Forge installer from any URL. Last error: {}",
+        last_error.unwrap_or_else(|| "Unknown error".to_string())
+    )
+    .into())
+}
+
 /// Fetch the Forge installer manifest to get the library list
 async fn fetch_forge_installer_manifest(
     game_version: &str,
     forge_version: &str,
 ) -> Result<ForgeInstallerManifest, Box<dyn Error + Send + Sync>> {
-    let forge_full = format!("{}-{}", game_version, forge_version);
-    
-    // Download the installer JAR to extract version.json
-    let installer_url = format!(
-        "{}net/minecraftforge/forge/{}/forge-{}-installer.jar",
-        FORGE_MAVEN_URL, forge_full, forge_full
-    );
-    
-    println!("Fetching Forge installer from: {}", installer_url);
-    
-    let response = reqwest::get(&installer_url).await?;
-    if !response.status().is_success() {
-        return Err(format!("Failed to download Forge installer: {}", response.status()).into());
-    }
-    
-    let bytes = response.bytes().await?;
-    
+    let bytes = try_download_forge_installer(game_version, forge_version).await?;
+
     // Extract version.json from the JAR (which is a ZIP file)
     let cursor = std::io::Cursor::new(bytes.as_ref());
     let mut archive = zip::ZipArchive::new(cursor)?;
-    
+
     // Look for version.json in the archive
     let version_json = archive.by_name("version.json")?;
     let manifest: ForgeInstallerManifest = serde_json::from_reader(version_json)?;
-    
+
     Ok(manifest)
 }
 
@@ -224,7 +294,7 @@ async fn fetch_forge_installer_manifest(
 /// # Returns
 /// Information about the installed version.
 pub async fn install_forge(
-    game_dir: &PathBuf,
+    game_dir: &std::path::Path,
     game_version: &str,
     forge_version: &str,
 ) -> Result<InstalledForgeVersion, Box<dyn Error + Send + Sync>> {
@@ -234,7 +304,8 @@ pub async fn install_forge(
     let manifest = fetch_forge_installer_manifest(game_version, forge_version).await?;
 
     // Create version JSON from the manifest
-    let version_json = create_forge_version_json_from_manifest(game_version, forge_version, &manifest)?;
+    let version_json =
+        create_forge_version_json_from_manifest(game_version, forge_version, &manifest)?;
 
     // Create the version directory
     let version_dir = game_dir.join("versions").join(&version_id);
@@ -270,47 +341,38 @@ pub async fn run_forge_installer(
     forge_version: &str,
     java_path: &PathBuf,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
-    // Download the installer JAR
-    let installer_url = format!(
-        "{}net/minecraftforge/forge/{}-{}/forge-{}-{}-installer.jar",
-        FORGE_MAVEN_URL, game_version, forge_version, game_version, forge_version
-    );
-    
     let installer_path = game_dir.join("forge-installer.jar");
-    
-    // Download installer
-    let client = reqwest::Client::new();
-    let response = client.get(&installer_url).send().await?;
-    
-    if !response.status().is_success() {
-        return Err(format!("Failed to download Forge installer: {}", response.status()).into());
-    }
-    
-    let bytes = response.bytes().await?;
+
+    // Download installer using the same multi-URL approach
+    let bytes = try_download_forge_installer(game_version, forge_version).await?;
     tokio::fs::write(&installer_path, &bytes).await?;
-    
+
     // Run the installer in headless mode
     // The installer accepts --installClient <path> to install to a specific directory
-    let output = tokio::process::Command::new(java_path)
-        .arg("-jar")
+    let mut cmd = tokio::process::Command::new(java_path);
+    cmd.arg("-jar")
         .arg(&installer_path)
         .arg("--installClient")
-        .arg(game_dir)
-        .output()
-        .await?;
-    
+        .arg(game_dir);
+
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(0x08000000);
+
+    let output = cmd.output().await?;
+
     // Clean up installer
     let _ = tokio::fs::remove_file(&installer_path).await;
-    
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         let stdout = String::from_utf8_lossy(&output.stdout);
         return Err(format!(
             "Forge installer failed:\nstdout: {}\nstderr: {}",
             stdout, stderr
-        ).into());
+        )
+        .into());
     }
-    
+
     Ok(())
 }
 
@@ -332,13 +394,14 @@ fn create_forge_version_json_from_manifest(
     });
 
     // Convert libraries to JSON format, preserving download info
-    let lib_entries: Vec<serde_json::Value> = manifest.libraries
+    let lib_entries: Vec<serde_json::Value> = manifest
+        .libraries
         .iter()
         .map(|lib| {
             let mut entry = serde_json::json!({
                 "name": lib.name
             });
-            
+
             // Add URL if present
             if let Some(url) = &lib.url {
                 entry["url"] = serde_json::Value::String(url.clone());
@@ -346,19 +409,22 @@ fn create_forge_version_json_from_manifest(
                 // Default to Forge Maven for Forge libraries
                 entry["url"] = serde_json::Value::String(FORGE_MAVEN_URL.to_string());
             }
-            
+
             // Add downloads if present
             if let Some(downloads) = &lib.downloads {
                 if let Some(artifact) = &downloads.artifact {
                     let mut artifact_json = serde_json::Map::new();
                     if let Some(path) = &artifact.path {
-                        artifact_json.insert("path".to_string(), serde_json::Value::String(path.clone()));
+                        artifact_json
+                            .insert("path".to_string(), serde_json::Value::String(path.clone()));
                     }
                     if let Some(url) = &artifact.url {
-                        artifact_json.insert("url".to_string(), serde_json::Value::String(url.clone()));
+                        artifact_json
+                            .insert("url".to_string(), serde_json::Value::String(url.clone()));
                     }
                     if let Some(sha1) = &artifact.sha1 {
-                        artifact_json.insert("sha1".to_string(), serde_json::Value::String(sha1.clone()));
+                        artifact_json
+                            .insert("sha1".to_string(), serde_json::Value::String(sha1.clone()));
                     }
                     if !artifact_json.is_empty() {
                         entry["downloads"] = serde_json::json!({
@@ -367,7 +433,7 @@ fn create_forge_version_json_from_manifest(
                     }
                 }
             }
-            
+
             entry
         })
         .collect();
@@ -377,7 +443,7 @@ fn create_forge_version_json_from_manifest(
         "game": [],
         "jvm": []
     });
-    
+
     if let Some(args) = &manifest.arguments {
         if let Some(game_args) = &args.game {
             arguments["game"] = serde_json::Value::Array(game_args.clone());
@@ -461,7 +527,12 @@ fn is_modern_forge(game_version: &str) -> bool {
 ///
 /// # Returns
 /// `true` if the version JSON exists, `false` otherwise.
-pub fn is_forge_installed(game_dir: &PathBuf, game_version: &str, forge_version: &str) -> bool {
+#[allow(dead_code)]
+pub fn is_forge_installed(
+    game_dir: &std::path::Path,
+    game_version: &str,
+    forge_version: &str,
+) -> bool {
     let version_id = generate_version_id(game_version, forge_version);
     let json_path = game_dir
         .join("versions")
@@ -477,8 +548,9 @@ pub fn is_forge_installed(game_dir: &PathBuf, game_version: &str, forge_version:
 ///
 /// # Returns
 /// A list of installed Forge version IDs.
+#[allow(dead_code)]
 pub async fn list_installed_forge_versions(
-    game_dir: &PathBuf,
+    game_dir: &std::path::Path,
 ) -> Result<Vec<String>, Box<dyn Error + Send + Sync>> {
     let versions_dir = game_dir.join("versions");
     let mut installed = Vec::new();

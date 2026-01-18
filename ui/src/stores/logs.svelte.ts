@@ -39,7 +39,6 @@ export class LogsState {
 
   constructor() {
     this.addLog("info", "Launcher", "Logs initialized");
-    this.setupListeners();
   }
 
   addLog(level: LogEntry["level"], source: string, message: string) {
@@ -95,7 +94,12 @@ export class LogsState {
       .join("\n");
   }
 
-  private async setupListeners() {
+  private initialized = false;
+
+  async init() {
+    if (this.initialized) return;
+    this.initialized = true;
+
     // General Launcher Logs
     await listen<string>("launcher-log", (e) => {
       this.addLog("info", "Launcher", e.payload);

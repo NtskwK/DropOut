@@ -1,6 +1,6 @@
 [package]
 name = "dropout"
-version = "0.1.23"
+version = "0.1.26"
 edition = "2021"
 authors = ["HsiangNianian"]
 description = "The DropOut Minecraft Game Launcher"
@@ -27,8 +27,11 @@ flate2 = "1.0"
 tar = "0.4"
 dirs = "5.0"
 serde_urlencoded = "0.7.1"
-tauri-plugin-dialog = "2.5.0"
+tauri-plugin-dialog = "2.6.0"
 tauri-plugin-fs = "2.4.5"
+bytes = "1.11.0"
+chrono = "0.4"
+regex = "1.12.2"
 
 [build-dependencies]
 tauri-build = { version = "2.0", features = [] }
@@ -45,4 +48,3 @@ section = "games"
 assets = [
     ["target/release/dropout", "usr/bin/", "755"],
 ]
-

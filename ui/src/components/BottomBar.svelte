@@ -4,7 +4,8 @@
   import { authState } from "../stores/auth.svelte";
   import { gameState } from "../stores/game.svelte";
   import { uiState } from "../stores/ui.svelte";
-  import { Terminal, ChevronDown, Play, User, Check, RefreshCw } from 'lucide-svelte';
+  import { instancesState } from "../stores/instances.svelte";
+  import { Terminal, ChevronDown, Play, User, Check } from 'lucide-svelte';
 
   interface InstalledVersion {
     id: string;
@@ -16,29 +17,44 @@
   let installedVersions = $state<InstalledVersion[]>([]);
   let isLoadingVersions = $state(true);
   let downloadCompleteUnlisten: UnlistenFn | null = null;
+  let versionDeletedUnlisten: UnlistenFn | null = null;
 
   // Load installed versions on mount
   $effect(() => {
     loadInstalledVersions();
-    setupDownloadListener();
+    setupEventListeners();
     return () => {
       if (downloadCompleteUnlisten) {
         downloadCompleteUnlisten();
       }
+      if (versionDeletedUnlisten) {
+        versionDeletedUnlisten();
+      }
     };
   });
 
-  async function setupDownloadListener() {
+  async function setupEventListeners() {
     // Refresh list when a download completes
     downloadCompleteUnlisten = await listen("download-complete", () => {
+      loadInstalledVersions();
+    });
+    // Refresh list when a version is deleted
+    versionDeletedUnlisten = await listen("version-deleted", () => {
       loadInstalledVersions();
     });
   }
 
   async function loadInstalledVersions() {
+    if (!instancesState.activeInstanceId) {
+      installedVersions = [];
+      isLoadingVersions = false;
+      return;
+    }
     isLoadingVersions = true;
     try {
-      installedVersions = await invoke<InstalledVersion[]>("list_installed_versions");
+      installedVersions = await invoke<InstalledVersion[]>("list_installed_versions", {
+        instanceId: instancesState.activeInstanceId,
+      });
       // If no version is selected but we have installed versions, select the first one
       if (!gameState.selectedVersion && installedVersions.length > 0) {
         gameState.selectedVersion = installedVersions[0].id;
@@ -160,18 +176,7 @@
     <div class="flex flex-col items-end mr-2">
       <!-- Custom Version Dropdown -->
       <div class="relative" bind:this={dropdownRef}>
-        <div class="flex items-center gap-2">
-          <button
-            type="button"
-            onclick={() => loadInstalledVersions()}
-            class="p-2.5 dark:bg-zinc-900 bg-zinc-50 border dark:border-zinc-700 border-zinc-300 rounded-md 
-                   dark:text-zinc-500 text-zinc-400 dark:hover:text-white hover:text-black
-                   dark:hover:border-zinc-600 hover:border-zinc-400 transition-colors"
-            title="Refresh installed versions"
-          >
-            <RefreshCw size={14} class={isLoadingVersions ? 'animate-spin' : ''} />
-          </button>
-          <button
+        <button
             type="button"
             onclick={() => isVersionDropdownOpen = !isVersionDropdownOpen}
             disabled={installedVersions.length === 0 && !isLoadingVersions}
@@ -183,21 +188,20 @@
                    transition-colors cursor-pointer outline-none
                    disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <span class="truncate">
-              {#if isLoadingVersions}
-                Loading...
-              {:else if installedVersions.length === 0}
-                No versions installed
-              {:else}
-                {gameState.selectedVersion || "Select version"}
-              {/if}
-            </span>
-            <ChevronDown 
-              size={14} 
-              class="shrink-0 dark:text-zinc-500 text-zinc-400 transition-transform duration-200 {isVersionDropdownOpen ? 'rotate-180' : ''}" 
-            />
-          </button>
-        </div>
+          <span class="truncate">
+            {#if isLoadingVersions}
+              Loading...
+            {:else if installedVersions.length === 0}
+              No versions installed
+            {:else}
+              {gameState.selectedVersion || "Select version"}
+            {/if}
+          </span>
+          <ChevronDown 
+            size={14} 
+            class="shrink-0 dark:text-zinc-500 text-zinc-400 transition-transform duration-200 {isVersionDropdownOpen ? 'rotate-180' : ''}" 
+          />
+        </button>
 
         {#if isVersionDropdownOpen && installedVersions.length > 0}
           <div 

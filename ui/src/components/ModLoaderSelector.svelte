@@ -9,6 +9,7 @@
   } from "../types";
   import { Loader2, Download, AlertCircle, Check, ChevronDown, CheckCircle } from 'lucide-svelte';
   import { logsState } from "../stores/logs.svelte";
+  import { instancesState } from "../stores/instances.svelte";
 
   interface Props {
     selectedGameVersion: string;
@@ -52,12 +53,13 @@
   });
 
   async function checkInstallStatus() {
-    if (!selectedGameVersion) {
+    if (!selectedGameVersion || !instancesState.activeInstanceId) {
       isVersionInstalled = false;
       return;
     }
     try {
       isVersionInstalled = await invoke<boolean>("check_version_installed", {
+        instanceId: instancesState.activeInstanceId,
         versionId: selectedGameVersion,
       });
     } catch (e) {
@@ -112,8 +114,13 @@
     error = null;
     logsState.addLog("info", "Installer", `Starting installation of ${selectedGameVersion}...`);
 
+    if (!instancesState.activeInstanceId) {
+      error = "Please select an instance first";
+      return;
+    }
     try {
       await invoke("install_version", {
+        instanceId: instancesState.activeInstanceId,
         versionId: selectedGameVersion,
       });
       logsState.addLog("info", "Installer", `Successfully installed ${selectedGameVersion}`);
@@ -134,6 +141,12 @@
       return;
     }
 
+    if (!instancesState.activeInstanceId) {
+      error = "Please select an instance first";
+      isInstalling = false;
+      return;
+    }
+
     isInstalling = true;
     error = null;
 
@@ -142,6 +155,7 @@
       if (!isVersionInstalled) {
         logsState.addLog("info", "Installer", `Installing base game ${selectedGameVersion} first...`);
         await invoke("install_version", {
+          instanceId: instancesState.activeInstanceId,
           versionId: selectedGameVersion,
         });
         isVersionInstalled = true;
@@ -151,6 +165,7 @@
       if (selectedLoader === "fabric" && selectedFabricLoader) {
         logsState.addLog("info", "Installer", `Installing Fabric ${selectedFabricLoader} for ${selectedGameVersion}...`);
         const result = await invoke<any>("install_fabric", {
+          instanceId: instancesState.activeInstanceId,
           gameVersion: selectedGameVersion,
           loaderVersion: selectedFabricLoader,
         });
@@ -159,6 +174,7 @@
       } else if (selectedLoader === "forge" && selectedForgeVersion) {
         logsState.addLog("info", "Installer", `Installing Forge ${selectedForgeVersion} for ${selectedGameVersion}...`);
         const result = await invoke<any>("install_forge", {
+          instanceId: instancesState.activeInstanceId,
           gameVersion: selectedGameVersion,
           forgeVersion: selectedForgeVersion,
         });
@@ -291,7 +307,12 @@
         
     {:else if selectedLoader === "fabric"}
         <div class="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-        <div>
+        {#if fabricLoaders.length === 0}
+            <div class="text-center p-4 text-sm text-zinc-500 italic">
+            No Fabric versions available for {selectedGameVersion}
+            </div>
+        {:else}
+            <div>
             <label for="fabric-loader-select" class="block text-[10px] uppercase font-bold text-zinc-500 mb-2"
             >Loader Version</label
             >
@@ -339,21 +360,22 @@
                     </div>
                 {/if}
             </div>
-        </div>
-        
-        <button
-            class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-2.5 px-4 rounded-sm font-bold text-sm transition-all flex items-center justify-center gap-2"
-            onclick={installModLoader}
-            disabled={isInstalling || !selectedFabricLoader}
-        >
-            {#if isInstalling}
-                <Loader2 class="animate-spin" size={16} />
-                Installing...
-            {:else}
-                <Download size={16} />
-                Install Fabric {selectedFabricLoader}
-            {/if}
-        </button>
+            </div>
+            
+            <button
+                class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white py-2.5 px-4 rounded-sm font-bold text-sm transition-all flex items-center justify-center gap-2"
+                onclick={installModLoader}
+                disabled={isInstalling || !selectedFabricLoader}
+            >
+                {#if isInstalling}
+                    <Loader2 class="animate-spin" size={16} />
+                    Installing...
+                {:else}
+                    <Download size={16} />
+                    Install Fabric {selectedFabricLoader}
+                {/if}
+            </button>
+        {/if}
         </div>
         
     {:else if selectedLoader === "forge"}

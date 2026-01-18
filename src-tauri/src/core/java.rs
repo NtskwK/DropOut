@@ -1,15 +1,29 @@
 use serde::{Deserialize, Serialize};
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 use std::process::Command;
 use tauri::AppHandle;
 use tauri::Emitter;
 use tauri::Manager;
 
-use crate::core::downloader::{self, JavaDownloadProgress, DownloadQueue, PendingJavaDownload};
+use crate::core::downloader::{self, DownloadQueue, JavaDownloadProgress, PendingJavaDownload};
 use crate::utils::zip;
 
 const ADOPTIUM_API_BASE: &str = "https://api.adoptium.net/v3";
 const CACHE_DURATION_SECS: u64 = 24 * 60 * 60; // 24 hours
+
+/// Helper to strip UNC prefix on Windows (\\?\)
+fn strip_unc_prefix(path: PathBuf) -> PathBuf {
+    #[cfg(target_os = "windows")]
+    {
+        let s = path.to_string_lossy().to_string();
+        if s.starts_with(r"\\?\") {
+            return PathBuf::from(&s[4..]);
+        }
+    }
+    path
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JavaInstallation {
@@ -58,23 +72,12 @@ pub struct JavaReleaseInfo {
 }
 
 /// Java catalog containing all available versions
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct JavaCatalog {
     pub releases: Vec<JavaReleaseInfo>,
     pub available_major_versions: Vec<u32>,
     pub lts_versions: Vec<u32>,
     pub cached_at: u64,
-}
-
-impl Default for JavaCatalog {
-    fn default() -> Self {
-        Self {
-            releases: Vec::new(),
-            available_major_versions: Vec::new(),
-            lts_versions: Vec::new(),
-            cached_at: 0,
-        }
-    }
 }
 
 /// Adoptium `/v3/assets/latest/{version}/hotspot` API response structures
@@ -86,6 +89,7 @@ pub struct AdoptiumAsset {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct AdoptiumBinary {
     pub os: String,
     pub architecture: String,
@@ -104,6 +108,7 @@ pub struct AdoptiumPackage {
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct AdoptiumVersionData {
     pub major: u32,
     pub minor: u32,
@@ -114,6 +119,7 @@ pub struct AdoptiumVersionData {
 
 /// Adoptium available releases response
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct AvailableReleases {
     pub available_releases: Vec<u32>,
     pub available_lts_releases: Vec<u32>,
@@ -231,6 +237,7 @@ pub fn save_catalog_cache(app_handle: &AppHandle, catalog: &JavaCatalog) -> Resu
 }
 
 /// Clear Java catalog cache
+#[allow(dead_code)]
 pub fn clear_catalog_cache(app_handle: &AppHandle) -> Result<(), String> {
     let cache_path = get_catalog_cache_path(app_handle);
     if cache_path.exists() {
@@ -240,7 +247,10 @@ pub fn clear_catalog_cache(app_handle: &AppHandle) -> Result<(), String> {
 }
 
 /// Fetch complete Java catalog from Adoptium API with platform availability check
-pub async fn fetch_java_catalog(app_handle: &AppHandle, force_refresh: bool) -> Result<JavaCatalog, String> {
+pub async fn fetch_java_catalog(
+    app_handle: &AppHandle,
+    force_refresh: bool,
+) -> Result<JavaCatalog, String> {
     // Check cache first unless force refresh
     if !force_refresh {
         if let Some(cached) = load_cached_catalog(app_handle) {
@@ -294,7 +304,9 @@ pub async fn fetch_java_catalog(app_handle: &AppHandle, force_refresh: bool) -> 
                                     file_size: asset.binary.package.size,
                                     checksum: asset.binary.package.checksum,
                                     download_url: asset.binary.package.link,
-                                    is_lts: available.available_lts_releases.contains(major_version),
+                                    is_lts: available
+                                        .available_lts_releases
+                                        .contains(major_version),
                                     is_available: true,
                                     architecture: asset.binary.architecture.clone(),
                                 });
@@ -547,7 +559,11 @@ pub async fn download_and_install_java(
     // Linux/Windows: jdk-xxx/bin/java
     let java_home = version_dir.join(&top_level_dir);
     let java_bin = if cfg!(target_os = "macos") {
-        java_home.join("Contents").join("Home").join("bin").join("java")
+        java_home
+            .join("Contents")
+            .join("Home")
+            .join("bin")
+            .join("java")
     } else if cfg!(windows) {
         java_home.join("bin").join("java.exe")
     } else {
@@ -560,6 +576,10 @@ pub async fn download_and_install_java(
             java_bin.display()
         ));
     }
+
+    // Resolve symlinks and strip UNC prefix to ensure clean path
+    let java_bin = std::fs::canonicalize(&java_bin).map_err(|e| e.to_string())?;
+    let java_bin = strip_unc_prefix(java_bin);
 
     // 9. Verify installation
     let installation = check_java_installation(&java_bin)
@@ -634,16 +654,22 @@ fn get_java_candidates() -> Vec<PathBuf> {
     let mut candidates = Vec::new();
 
     // Check PATH first
-    if let Ok(output) = Command::new(if cfg!(windows) { "where" } else { "which" })
-        .arg("java")
-        .output()
-    {
+    let mut cmd = Command::new(if cfg!(windows) { "where" } else { "which" });
+    cmd.arg("java");
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(0x08000000);
+
+    if let Ok(output) = cmd.output() {
         if output.status.success() {
             let paths = String::from_utf8_lossy(&output.stdout);
             for line in paths.lines() {
                 let path = PathBuf::from(line.trim());
                 if path.exists() {
-                    candidates.push(path);
+                    // Resolve symlinks (important for Windows javapath wrapper)
+                    let resolved = std::fs::canonicalize(&path).unwrap_or(path);
+                    // Strip UNC prefix if present to keep paths clean
+                    let final_path = strip_unc_prefix(resolved);
+                    candidates.push(final_path);
                 }
             }
         }
@@ -786,7 +812,12 @@ fn get_java_candidates() -> Vec<PathBuf> {
 
 /// Check a specific Java installation and get its version info
 fn check_java_installation(path: &PathBuf) -> Option<JavaInstallation> {
-    let output = Command::new(path).arg("-version").output().ok()?;
+    let mut cmd = Command::new(path);
+    cmd.arg("-version");
+    #[cfg(target_os = "windows")]
+    cmd.creation_flags(0x08000000);
+
+    let output = cmd.output().ok()?;
 
     // Java outputs version info to stderr
     let version_output = String::from_utf8_lossy(&output.stderr);
@@ -850,6 +881,64 @@ pub fn get_recommended_java(required_major_version: Option<u64>) -> Option<JavaI
     }
 }
 
+/// Get compatible Java for a specific Minecraft version with upper bound
+/// For older Minecraft versions (1.13.x and below), we need Java 8 specifically
+/// as newer Java versions have compatibility issues with old Forge versions
+pub fn get_compatible_java(
+    app_handle: &AppHandle,
+    required_major_version: Option<u64>,
+    max_major_version: Option<u32>,
+) -> Option<JavaInstallation> {
+    let installations = detect_all_java_installations(app_handle);
+
+    if let Some(max_version) = max_major_version {
+        // Find Java version within the acceptable range
+        installations.into_iter().find(|java| {
+            let major = parse_java_version(&java.version);
+            let meets_min = if let Some(required) = required_major_version {
+                major >= required as u32
+            } else {
+                true
+            };
+            meets_min && major <= max_version
+        })
+    } else if let Some(required) = required_major_version {
+        // Find exact match or higher (no upper bound)
+        installations.into_iter().find(|java| {
+            let major = parse_java_version(&java.version);
+            major >= required as u32
+        })
+    } else {
+        // Return newest
+        installations.into_iter().next()
+    }
+}
+
+/// Check if a Java installation is compatible with the required version range
+pub fn is_java_compatible(
+    java_path: &str,
+    required_major_version: Option<u64>,
+    max_major_version: Option<u32>,
+) -> bool {
+    let java_path_buf = PathBuf::from(java_path);
+    if let Some(java) = check_java_installation(&java_path_buf) {
+        let major = parse_java_version(&java.version);
+        let meets_min = if let Some(required) = required_major_version {
+            major >= required as u32
+        } else {
+            true
+        };
+        let meets_max = if let Some(max_version) = max_major_version {
+            major <= max_version
+        } else {
+            true
+        };
+        meets_min && meets_max
+    } else {
+        false
+    }
+}
+
 /// Detect all installed Java versions (including system installations and DropOut downloads)
 pub fn detect_all_java_installations(app_handle: &AppHandle) -> Vec<JavaInstallation> {
     let mut installations = detect_java_installations();
@@ -885,14 +974,15 @@ pub fn detect_all_java_installations(app_handle: &AppHandle) -> Vec<JavaInstalla
     installations
 }
 
-//// Find the java executable in a directory using a limited-depth search
+/// Find the java executable in a directory using a limited-depth search
 fn find_java_executable(dir: &PathBuf) -> Option<PathBuf> {
     let bin_name = if cfg!(windows) { "java.exe" } else { "java" };
 
     // Directly look in the bin directory
     let direct_bin = dir.join("bin").join(bin_name);
     if direct_bin.exists() {
-        return Some(direct_bin);
+        let resolved = std::fs::canonicalize(&direct_bin).unwrap_or(direct_bin);
+        return Some(strip_unc_prefix(resolved));
     }
 
     // macOS: Contents/Home/bin/java
@@ -912,13 +1002,18 @@ fn find_java_executable(dir: &PathBuf) -> Option<PathBuf> {
                 // Try direct bin path
                 let nested_bin = path.join("bin").join(bin_name);
                 if nested_bin.exists() {
-                    return Some(nested_bin);
+                    let resolved = std::fs::canonicalize(&nested_bin).unwrap_or(nested_bin);
+                    return Some(strip_unc_prefix(resolved));
                 }
 
                 // macOS: nested/Contents/Home/bin/java
                 #[cfg(target_os = "macos")]
                 {
-                    let macos_nested = path.join("Contents").join("Home").join("bin").join(bin_name);
+                    let macos_nested = path
+                        .join("Contents")
+                        .join("Home")
+                        .join("bin")
+                        .join(bin_name);
                     if macos_nested.exists() {
                         return Some(macos_nested);
                     }
@@ -931,7 +1026,9 @@ fn find_java_executable(dir: &PathBuf) -> Option<PathBuf> {
 }
 
 /// Resume pending Java downloads from queue
-pub async fn resume_pending_downloads(app_handle: &AppHandle) -> Result<Vec<JavaInstallation>, String> {
+pub async fn resume_pending_downloads(
+    app_handle: &AppHandle,
+) -> Result<Vec<JavaInstallation>, String> {
     let queue = DownloadQueue::load(app_handle);
     let mut installed = Vec::new();
 
@@ -978,7 +1075,12 @@ pub fn get_pending_downloads(app_handle: &AppHandle) -> Vec<PendingJavaDownload>
 }
 
 /// Clear a specific pending download
-pub fn clear_pending_download(app_handle: &AppHandle, major_version: u32, image_type: &str) -> Result<(), String> {
+#[allow(dead_code)]
+pub fn clear_pending_download(
+    app_handle: &AppHandle,
+    major_version: u32,
+    image_type: &str,
+) -> Result<(), String> {
     let mut queue = DownloadQueue::load(app_handle);
     queue.remove(major_version, image_type);
     queue.save(app_handle)

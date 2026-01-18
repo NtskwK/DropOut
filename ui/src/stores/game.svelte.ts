@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Version } from "../types";
 import { uiState } from "./ui.svelte";
 import { authState } from "./auth.svelte";
+import { instancesState } from "./instances.svelte";
 
 export class GameState {
   versions = $state<Version[]>([]);
@@ -14,10 +15,8 @@ export class GameState {
   async loadVersions() {
     try {
       this.versions = await invoke<Version[]>("get_versions");
-      if (this.versions.length > 0) {
-        const latest = this.versions.find((v) => v.type === "release");
-        this.selectedVersion = latest ? latest.id : this.versions[0].id;
-      }
+      // Don't auto-select version here - let BottomBar handle version selection
+      // based on installed versions only
     } catch (e) {
       console.error("Failed to fetch versions:", e);
       uiState.setStatus("Error fetching versions: " + e);
@@ -36,10 +35,24 @@ export class GameState {
       return;
     }
 
+    if (!instancesState.activeInstanceId) {
+      alert("Please select an instance first!");
+      uiState.setView("instances");
+      return;
+    }
+
     uiState.setStatus("Preparing to launch " + this.selectedVersion + "...");
-    console.log("Invoking start_game for version:", this.selectedVersion);
+    console.log(
+      "Invoking start_game for version:",
+      this.selectedVersion,
+      "instance:",
+      instancesState.activeInstanceId,
+    );
     try {
-      const msg = await invoke<string>("start_game", { versionId: this.selectedVersion });
+      const msg = await invoke<string>("start_game", {
+        instanceId: instancesState.activeInstanceId,
+        versionId: this.selectedVersion,
+      });
       console.log("Response:", msg);
       uiState.setStatus(msg);
     } catch (e) {

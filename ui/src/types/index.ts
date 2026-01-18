@@ -1,4 +1,4 @@
-export type ViewType = "home" | "versions" | "settings";
+export type ViewType = "home" | "versions" | "settings" | "guide" | "instances";
 
 export interface Version {
   id: string;
@@ -6,6 +6,8 @@ export interface Version {
   url: string;
   time: string;
   releaseTime: string;
+  javaVersion?: number; // Java major version requirement (e.g., 8, 17, 21)
+  isInstalled?: boolean; // Whether this version is installed locally
 }
 
 export interface Account {
@@ -26,6 +28,31 @@ export interface DeviceCodeResponse {
   message?: string;
 }
 
+export interface AssistantConfig {
+  enabled: boolean;
+  llm_provider: "ollama" | "openai";
+  // Ollama settings
+  ollama_endpoint: string;
+  ollama_model: string;
+  // OpenAI settings
+  openai_api_key?: string;
+  openai_endpoint: string;
+  openai_model: string;
+  // Common settings
+  system_prompt: string;
+  response_language: string;
+  // TTS settings
+  tts_enabled: boolean;
+  tts_provider: string;
+}
+
+export interface ModelInfo {
+  id: string;
+  name: string;
+  size?: string;
+  details?: string;
+}
+
 export interface LauncherConfig {
   min_memory: number;
   max_memory: number;
@@ -40,6 +67,7 @@ export interface LauncherConfig {
   theme: string;
   log_upload_service: "paste.rs" | "pastebin.com";
   pastebin_api_key?: string;
+  assistant: AssistantConfig;
 }
 
 export interface JavaInstallation {
@@ -159,3 +187,18 @@ export interface InstalledForgeVersion {
 // ==================== Mod Loader Type ====================
 
 export type ModLoaderType = "vanilla" | "fabric" | "forge";
+
+// ==================== Instance Types ====================
+
+export interface Instance {
+  id: string;
+  name: string;
+  game_dir: string;
+  version_id?: string;
+  created_at: number;
+  last_played?: number;
+  icon_path?: string;
+  notes?: string;
+  mod_loader?: string;
+  mod_loader_version?: string;
+}
