@@ -6,9 +6,9 @@ use uuid::Uuid;
 // This is critical because Microsoft's WAF often blocks requests without a valid UA
 fn get_client() -> reqwest::Client {
     reqwest::Client::builder()
-        .user_agent("DropOut/1.0 (Linux)")
+        .user_agent("DropOut/1.0")
         .build()
-        .unwrap_or_else(|_| get_client())
+        .unwrap_or_else(|_| reqwest::Client::new())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
