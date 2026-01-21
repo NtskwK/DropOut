@@ -92,7 +92,8 @@ pub struct FabricLibrary {
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
 #[ts(
     export,
-    export_to = "../../packages/ui/src/types/generated/FabricMainClass.ts"
+    export_to = "../../packages/ui/src/types/generated/FabricMainClass.ts",
+    untagged
 )]
 #[serde(untagged)]
 pub enum FabricMainClass {

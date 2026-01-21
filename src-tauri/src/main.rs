@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 use std::process::Stdio;
 use std::sync::Mutex;
-use tauri::{Emitter, Manager, State, Window}; // Added Emitter
+use tauri::{Emitter, Manager, State, Window};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use ts_rs::TS;
