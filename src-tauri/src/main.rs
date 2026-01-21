@@ -1751,10 +1751,7 @@ async fn get_version_java_version(
 
 /// Version metadata for display in the UI
 #[derive(serde::Serialize, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui/src/types/generated/VersionMetadata.ts"
-)]
+#[ts(export, export_to = "../../packages/ui-new/src/types/bindings/core.ts")]
 struct VersionMetadata {
     id: String,
     #[serde(rename = "javaVersion")]
@@ -1905,10 +1902,7 @@ async fn get_version_metadata(
 
 /// Installed version info
 #[derive(serde::Serialize, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui/src/types/generated/InstalledVersion.ts"
-)]
+#[ts(export, export_to = "../../packages/ui-new/src/types/bindings/core.ts")]
 struct InstalledVersion {
     id: String,
     #[serde(rename = "type")]
@@ -2138,10 +2132,7 @@ async fn install_forge(
 }
 
 #[derive(serde::Serialize, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui/src/types/generated/GithubRelease.ts"
-)]
+#[ts(export, export_to = "../../packages/ui-new/src/types/bindings/core.ts")]
 struct GithubRelease {
     tag_name: String,
     name: String,
@@ -2188,10 +2179,7 @@ async fn get_github_releases() -> Result<Vec<GithubRelease>, String> {
 }
 
 #[derive(Serialize, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui/src/types/generated/PastebinResponse.ts"
-)]
+#[ts(export, export_to = "../../packages/ui-new/src/types/bindings/core.ts")]
 struct PastebinResponse {
     url: String,
 }
@@ -2400,10 +2388,7 @@ async fn assistant_chat_stream(
 
 /// Migrate instance caches to shared global caches
 #[derive(Serialize, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui/src/types/generated/MigrationResult.ts"
-)]
+#[ts(export, export_to = "../../packages/ui-new/src/types/bindings/core.ts")]
 struct MigrationResult {
     moved_files: usize,
     hardlinks: usize,
@@ -2453,10 +2438,7 @@ async fn migrate_shared_caches(
 
 /// File information for instance file browser
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui/src/types/generated/FileInfo.ts"
-)]
+#[ts(export, export_to = "../../packages/ui-new/src/types/bindings/core.ts")]
 struct FileInfo {
     name: String,
     path: String,

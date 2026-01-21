@@ -27,10 +27,7 @@ fn strip_unc_prefix(path: PathBuf) -> PathBuf {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui/src/types/generated/JavaInstallation.ts"
-)]
+#[ts(export, export_to = "../../packages/ui-new/src/types/bindings/java.ts")]
 pub struct JavaInstallation {
     pub path: String,
     pub version: String,
@@ -42,7 +39,7 @@ pub struct JavaInstallation {
 #[ts(
     export,
     rename_all = "lowercase",
-    export_to = "../../packages/ui/src/types/generated/ImageType.ts"
+    export_to = "../../packages/ui-new/src/types/bindings/java.ts"
 )]
 #[serde(rename_all = "lowercase")]
 pub enum ImageType {
@@ -67,10 +64,7 @@ impl std::fmt::Display for ImageType {
 
 /// Java release information for UI display
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui/src/types/generated/JavaReleaseInfo.ts"
-)]
+#[ts(export, export_to = "../../packages/ui-new/src/types/bindings/java.ts")]
 pub struct JavaReleaseInfo {
     pub major_version: u32,
     pub image_type: String,
@@ -87,10 +81,7 @@ pub struct JavaReleaseInfo {
 
 /// Java catalog containing all available versions
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui/src/types/generated/JavaCatalog.ts"
-)]
+#[ts(export, export_to = "../../packages/ui-new/src/types/bindings/java.ts")]
 pub struct JavaCatalog {
     pub releases: Vec<JavaReleaseInfo>,
     pub available_major_versions: Vec<u32>,
@@ -147,10 +138,7 @@ pub struct AvailableReleases {
 
 /// Java download information from Adoptium
 #[derive(Debug, Clone, Serialize, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui/src/types/generated/JavaDownloadInfo.ts"
-)]
+#[ts(export, export_to = "../../packages/ui-new/src/types/bindings/java.ts")]
 pub struct JavaDownloadInfo {
     pub version: String,
     pub release_name: String,

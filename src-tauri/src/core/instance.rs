@@ -17,7 +17,7 @@ use ts_rs::TS;
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(
     export,
-    export_to = "../../packages/ui/src/types/generated/Instance.ts"
+    export_to = "../../packages/ui-new/src/types/bindings/instance.ts"
 )]
 pub struct Instance {
     pub id: String,                         // 唯一标识符（UUID）
@@ -39,7 +39,7 @@ pub struct Instance {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(
     export,
-    export_to = "../../packages/ui/src/types/generated/MemoryOverride.ts"
+    export_to = "../../packages/ui-new/src/types/bindings/instance.ts"
 )]
 pub struct MemoryOverride {
     pub min: u32, // MB
@@ -50,7 +50,7 @@ pub struct MemoryOverride {
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
 #[ts(
     export,
-    export_to = "../../packages/ui/src/types/generated/InstanceConfig.ts"
+    export_to = "../../packages/ui-new/src/types/bindings/instance.ts"
 )]
 pub struct InstanceConfig {
     pub instances: Vec<Instance>,

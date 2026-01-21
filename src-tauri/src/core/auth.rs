@@ -17,7 +17,7 @@ fn get_client() -> reqwest::Client {
 #[ts(
     export,
     tag = "type",
-    export_to = "../../packages/ui/src/types/generated/Account.ts"
+    export_to = "../../packages/ui-new/src/types/bindings/auth.ts"
 )]
 pub enum Account {
     Offline(OfflineAccount),
@@ -48,20 +48,14 @@ impl Account {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui/src/types/generated/OfflineAccount.ts"
-)]
+#[ts(export, export_to = "../../packages/ui-new/src/types/bindings/auth.ts")]
 pub struct OfflineAccount {
     pub username: String,
     pub uuid: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui/src/types/generated/MicrosoftAccount.ts"
-)]
+#[ts(export, export_to = "../../packages/ui-new/src/types/bindings/auth.ts")]
 pub struct MicrosoftAccount {
     pub username: String,
     pub uuid: String,
@@ -91,10 +85,7 @@ const CLIENT_ID: &str = "fe165602-5410-4441-92f7-326e10a7cb82";
 const SCOPE: &str = "XboxLive.SignIn XboxLive.offline_access";
 
 #[derive(Debug, Serialize, Deserialize, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui/src/types/generated/DeviceCodeResponse.ts"
-)]
+#[ts(export, export_to = "../../packages/ui-new/src/types/bindings/auth.ts")]
 pub struct DeviceCodeResponse {
     pub user_code: String,
     pub device_code: String,
@@ -105,10 +96,7 @@ pub struct DeviceCodeResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui/src/types/generated/TokenResponse.ts"
-)]
+#[ts(export, export_to = "../../packages/ui-new/src/types/bindings/auth.ts")]
 pub struct TokenResponse {
     pub access_token: String,
     pub refresh_token: Option<String>,
@@ -231,10 +219,7 @@ pub struct MinecraftAuthResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, TS)]
-#[ts(
-    export,
-    export_to = "../../packages/ui/src/types/generated/MinecraftProfile.ts"
-)]
+#[ts(export, export_to = "../../packages/ui-new/src/types/bindings/auth.ts")]
 pub struct MinecraftProfile {
     pub id: String,
     pub name: String,

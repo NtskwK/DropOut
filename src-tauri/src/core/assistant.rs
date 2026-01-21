@@ -7,7 +7,10 @@ use tauri::{Emitter, Window};
 use ts_rs::TS;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export, export_to = "../../packages/ui/src/types/generated/Message.ts")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/assistant.ts"
+)]
 pub struct Message {
     pub role: String,
     pub content: String,
@@ -56,7 +59,7 @@ pub struct OllamaTagsResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(
     export,
-    export_to = "../../packages/ui/src/types/generated/ModelInfo.ts"
+    export_to = "../../packages/ui-new/src/types/bindings/assistant.ts"
 )]
 pub struct ModelInfo {
     pub id: String,
@@ -111,7 +114,7 @@ pub struct OpenAIModelsResponse {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(
     export,
-    export_to = "../../packages/ui/src/types/generated/GenerationStats.ts"
+    export_to = "../../packages/ui-new/src/types/bindings/assistant.ts"
 )]
 pub struct GenerationStats {
     pub total_duration: u64,
@@ -125,7 +128,7 @@ pub struct GenerationStats {
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(
     export,
-    export_to = "../../packages/ui/src/types/generated/StreamChunk.ts"
+    export_to = "../../packages/ui-new/src/types/bindings/assistant.ts"
 )]
 pub struct StreamChunk {
     pub content: String,

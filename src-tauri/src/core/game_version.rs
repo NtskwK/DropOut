@@ -6,7 +6,7 @@ use ts_rs::TS;
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
 #[ts(
     export,
-    export_to = "../../packages/ui/src/types/generated/GameVersion.ts"
+    export_to = "../../packages/ui-new/src/types/bindings/game_version.ts"
 )]
 pub struct GameVersion {
     pub id: String,
@@ -36,7 +36,7 @@ pub struct GameVersion {
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
 #[ts(
     export,
-    export_to = "../../packages/ui/src/types/generated/Downloads.ts"
+    export_to = "../../packages/ui-new/src/types/bindings/game_version.ts"
 )]
 pub struct Downloads {
     pub client: DownloadArtifact,
@@ -46,7 +46,7 @@ pub struct Downloads {
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
 #[ts(
     export,
-    export_to = "../../packages/ui/src/types/generated/DownloadArtifact.ts"
+    export_to = "../../packages/ui-new/src/types/bindings/game_version.ts"
 )]
 pub struct DownloadArtifact {
     pub sha1: Option<String>,
@@ -58,7 +58,7 @@ pub struct DownloadArtifact {
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
 #[ts(
     export,
-    export_to = "../../packages/ui/src/types/generated/AssetIndex.ts"
+    export_to = "../../packages/ui-new/src/types/bindings/game_version.ts"
 )]
 pub struct AssetIndex {
     pub id: String,
@@ -70,7 +70,10 @@ pub struct AssetIndex {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
-#[ts(export, export_to = "../../packages/ui/src/types/generated/Library.ts")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/game_version.ts"
+)]
 pub struct Library {
     pub downloads: Option<LibraryDownloads>,
     pub name: String,
@@ -82,7 +85,10 @@ pub struct Library {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
-#[ts(export, export_to = "../../packages/ui/src/types/generated/Rule.ts")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/game_version.ts"
+)]
 pub struct Rule {
     pub action: String, // "allow" or "disallow"
     pub os: Option<OsRule>,
@@ -91,7 +97,10 @@ pub struct Rule {
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
-#[ts(export, export_to = "../../packages/ui/src/types/generated/OsRule.ts")]
+#[ts(
+    export,
+    export_to = "../../packages/ui-new/src/types/bindings/game_version.ts"
+)]
 pub struct OsRule {
     pub name: Option<String>,    // "linux", "osx", "windows"
     pub version: Option<String>, // Regex
@@ -101,7 +110,7 @@ pub struct OsRule {
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
 #[ts(
     export,
-    export_to = "../../packages/ui/src/types/generated/LibraryDownloads.ts"
+    export_to = "../../packages/ui-new/src/types/bindings/game_version.ts"
 )]
 pub struct LibraryDownloads {
     pub artifact: Option<DownloadArtifact>,
@@ -112,7 +121,7 @@ pub struct LibraryDownloads {
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
 #[ts(
     export,
-    export_to = "../../packages/ui/src/types/generated/Arguments.ts"
+    export_to = "../../packages/ui-new/src/types/bindings/game_version.ts"
 )]
 pub struct Arguments {
     #[ts(type = "Record<string, unknown>")]
@@ -124,7 +133,7 @@ pub struct Arguments {
 #[derive(Debug, Deserialize, Serialize, Clone, TS)]
 #[ts(
     export,
-    export_to = "../../packages/ui/src/types/generated/JavaVersion.ts"
+    export_to = "../../packages/ui-new/src/types/bindings/game_version.ts"
 )]
 pub struct JavaVersion {
     pub component: String,
