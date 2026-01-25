@@ -91,77 +91,88 @@ impl JavaProvider for AdoptiumProvider {
             .await
             .map_err(|e| format!("Failed to parse available releases: {}", e))?;
 
-        let mut releases = Vec::new();
+        // Parallelize HTTP requests for better performance
+        let mut fetch_tasks = Vec::new();
 
         for major_version in &available.available_releases {
             for image_type in &["jre", "jdk"] {
+                let major_version = *major_version;
+                let image_type = image_type.to_string();
                 let url = format!(
                     "{}/assets/latest/{}/hotspot?os={}&architecture={}&image_type={}",
                     ADOPTIUM_API_BASE, major_version, os, arch, image_type
                 );
+                let client = client.clone();
+                let is_lts = available.available_lts_releases.contains(&major_version);
+                let arch = arch.to_string();
 
-                match client
-                    .get(&url)
-                    .header("Accept", "application/json")
-                    .send()
-                    .await
-                {
-                    Ok(response) => {
-                        if response.status().is_success() {
-                            if let Ok(assets) = response.json::<Vec<AdoptiumAsset>>().await {
-                                if let Some(asset) = assets.into_iter().next() {
-                                    let release_date = asset.binary.updated_at.clone();
-                                    let release_info = JavaReleaseInfo {
-                                        major_version: *major_version,
-                                        image_type: image_type.to_string(),
-                                        version: asset.version.semver.clone(),
-                                        release_name: asset.release_name.clone(),
-                                        release_date,
-                                        file_size: asset.binary.package.size,
-                                        checksum: asset.binary.package.checksum,
-                                        download_url: asset.binary.package.link,
-                                        is_lts: available
-                                            .available_lts_releases
-                                            .contains(major_version),
-                                        is_available: true,
-                                        architecture: asset.binary.architecture.clone(),
-                                    };
-                                    releases.push(release_info);
+                let task = tokio::spawn(async move {
+                    match client
+                        .get(&url)
+                        .header("Accept", "application/json")
+                        .send()
+                        .await
+                    {
+                        Ok(response) => {
+                            if response.status().is_success() {
+                                if let Ok(assets) = response.json::<Vec<AdoptiumAsset>>().await {
+                                    if let Some(asset) = assets.into_iter().next() {
+                                        let release_date = asset.binary.updated_at.clone();
+                                        return Some(JavaReleaseInfo {
+                                            major_version,
+                                            image_type,
+                                            version: asset.version.semver.clone(),
+                                            release_name: asset.release_name.clone(),
+                                            release_date,
+                                            file_size: asset.binary.package.size,
+                                            checksum: asset.binary.package.checksum,
+                                            download_url: asset.binary.package.link,
+                                            is_lts,
+                                            is_available: true,
+                                            architecture: asset.binary.architecture.clone(),
+                                        });
+                                    }
                                 }
                             }
-                        } else {
-                            let release_info = JavaReleaseInfo {
-                                major_version: *major_version,
-                                image_type: image_type.to_string(),
+                            // Fallback for unsuccessful response
+                            Some(JavaReleaseInfo {
+                                major_version,
+                                image_type,
                                 version: format!("{}.x", major_version),
                                 release_name: format!("jdk-{}", major_version),
                                 release_date: None,
                                 file_size: 0,
                                 checksum: None,
                                 download_url: String::new(),
-                                is_lts: available.available_lts_releases.contains(major_version),
+                                is_lts,
                                 is_available: false,
-                                architecture: arch.to_string(),
-                            };
-                            releases.push(release_info);
+                                architecture: arch,
+                            })
                         }
-                    }
-                    Err(_) => {
-                        releases.push(JavaReleaseInfo {
-                            major_version: *major_version,
-                            image_type: image_type.to_string(),
+                        Err(_) => Some(JavaReleaseInfo {
+                            major_version,
+                            image_type,
                             version: format!("{}.x", major_version),
                             release_name: format!("jdk-{}", major_version),
                             release_date: None,
                             file_size: 0,
                             checksum: None,
                             download_url: String::new(),
-                            is_lts: available.available_lts_releases.contains(major_version),
+                            is_lts,
                             is_available: false,
-                            architecture: arch.to_string(),
-                        });
+                            architecture: arch,
+                        }),
                     }
-                }
+                });
+                fetch_tasks.push(task);
+            }
+        }
+
+        // Collect all results concurrently
+        let mut releases = Vec::new();
+        for task in fetch_tasks {
+            if let Ok(Some(release)) = task.await {
+                releases.push(release);
             }
         }
 

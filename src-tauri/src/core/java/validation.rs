@@ -1,24 +1,10 @@
 use std::path::PathBuf;
 use std::process::Command;
-use std::time::Duration;
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
 use super::JavaInstallation;
-
-const JAVA_CHECK_TIMEOUT: Duration = Duration::from_secs(5);
-
-pub fn strip_unc_prefix(path: PathBuf) -> PathBuf {
-	#[cfg(target_os = "windows")]
-	{
-		let s = path.to_string_lossy().to_string();
-		if s.starts_with(r"\\?\") {
-			return PathBuf::from(&s[4..]);
-		}
-	}
-	path
-}
 
 pub async fn check_java_installation(path: &PathBuf) -> Option<JavaInstallation> {
 	let path = path.clone();

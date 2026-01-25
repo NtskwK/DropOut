@@ -9,6 +9,18 @@ pub mod validation;
 pub mod provider;
 pub mod providers;
 
+/// Remove the UNC prefix (\\?\) from Windows paths
+pub fn strip_unc_prefix(path: PathBuf) -> PathBuf {
+    #[cfg(target_os = "windows")]
+    {
+        let s = path.to_string_lossy().to_string();
+        if s.starts_with(r"\\?\\") {
+            return PathBuf::from(&s[4..]);
+        }
+    }
+    path
+}
+
 use crate::core::downloader::{DownloadQueue, JavaDownloadProgress, PendingJavaDownload};
 use crate::utils::zip;
 use provider::JavaProvider;
@@ -267,7 +279,7 @@ pub async fn download_and_install_java(
     }
 
     let java_bin = std::fs::canonicalize(&java_bin).map_err(|e| e.to_string())?;
-    let java_bin = validation::strip_unc_prefix(java_bin);
+    let java_bin = strip_unc_prefix(java_bin);
 
     let installation = validation::check_java_installation(&java_bin)
         .await
@@ -431,7 +443,7 @@ fn find_java_executable(dir: &PathBuf) -> Option<PathBuf> {
     let direct_bin = dir.join("bin").join(bin_name);
     if direct_bin.exists() {
         let resolved = std::fs::canonicalize(&direct_bin).unwrap_or(direct_bin);
-        return Some(validation::strip_unc_prefix(resolved));
+        return Some(strip_unc_prefix(resolved));
     }
 
     #[cfg(target_os = "macos")]
@@ -449,7 +461,7 @@ fn find_java_executable(dir: &PathBuf) -> Option<PathBuf> {
                 let nested_bin = path.join("bin").join(bin_name);
                 if nested_bin.exists() {
                     let resolved = std::fs::canonicalize(&nested_bin).unwrap_or(nested_bin);
-                    return Some(validation::strip_unc_prefix(resolved));
+                    return Some(strip_unc_prefix(resolved));
                 }
 
                 #[cfg(target_os = "macos")]

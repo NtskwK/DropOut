@@ -1,20 +1,15 @@
+use std::io::Read;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, Stdio};
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
 
-pub fn strip_unc_prefix(path: PathBuf) -> PathBuf {
-    #[cfg(target_os = "windows")]
-    {
-        // Remove the UNC prefix (\\?\) from Windows paths
-        let s = path.to_string_lossy().to_string();
-        if s.starts_with(r"\\?\") {
-            return PathBuf::from(&s[4..]);
-        }
-    }
-    path
-}
+use super::strip_unc_prefix;
+
+const WHICH_TIMEOUT: Duration = Duration::from_secs(2);
 
 pub fn find_sdkman_java() -> Option<PathBuf> {
     let home = std::env::var("HOME").ok()?;
@@ -30,18 +25,40 @@ fn run_which_command_with_timeout() -> Option<String> {
     let mut cmd = Command::new(if cfg!(windows) { "where" } else { "which" });
     cmd.arg("java");
     #[cfg(target_os = "windows")]
-    // Hide the console window on Windows
     cmd.creation_flags(0x08000000);
+    cmd.stdout(Stdio::piped());
 
-    match cmd.output() {
-        Ok(output) => {
-            if output.status.success() {
-                Some(String::from_utf8_lossy(&output.stdout).to_string())
-            } else {
-                None
+    let start = Instant::now();
+    let mut child = cmd.spawn().ok()?;
+
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                if status.success() {
+                    let mut output = String::new();
+                    if let Some(mut stdout) = child.stdout.take() {
+                        let _ = stdout.read_to_string(&mut output);
+                    }
+                    return Some(output);
+                } else {
+                    let _ = child.wait();
+                    return None;
+                }
+            }
+            Ok(None) => {
+                if start.elapsed() >= WHICH_TIMEOUT {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return None;
+                }
+                sleep(Duration::from_millis(50));
+            }
+            Err(_) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return None;
             }
         }
-        Err(_) => None,
     }
 }
 
