@@ -10,6 +10,13 @@ use super::strip_unc_prefix;
 
 const WHICH_TIMEOUT: Duration = Duration::from_secs(2);
 
+/// Finds Java installation from SDKMAN! if available
+///
+/// Checks the standard SDKMAN! installation path:
+/// `~/.sdkman/candidates/java/current/bin/java`
+///
+/// # Returns
+/// `Some(PathBuf)` if SDKMAN! Java is found and exists, `None` otherwise
 pub fn find_sdkman_java() -> Option<PathBuf> {
     let home = std::env::var("HOME").ok()?;
     let sdkman_path = PathBuf::from(&home).join(".sdkman/candidates/java/current/bin/java");
@@ -20,17 +27,42 @@ pub fn find_sdkman_java() -> Option<PathBuf> {
     }
 }
 
+/// Runs `which` (Unix) or `where` (Windows) command to find Java in PATH with timeout
+///
+/// This function spawns a subprocess to locate the `java` executable in the system PATH.
+/// It enforces a 2-second timeout to prevent hanging if the command takes too long.
+///
+/// # Returns
+/// `Some(String)` containing the output (paths separated by newlines) if successful,
+/// `None` if the command fails, times out, or returns non-zero exit code
+///
+/// # Platform-specific behavior
+/// - Unix/Linux/macOS: Uses `which java`
+/// - Windows: Uses `where java` and hides the console window
+///
+/// # Timeout Behavior
+/// If the command does not complete within 2 seconds, the process is killed
+/// and `None` is returned. This prevents the launcher from hanging on systems
+/// where `which`/`where` may be slow or unresponsive.
 fn run_which_command_with_timeout() -> Option<String> {
     let mut cmd = Command::new(if cfg!(windows) { "where" } else { "which" });
     cmd.arg("java");
-    // Hide console window
+    // Hide console window on Windows
     #[cfg(target_os = "windows")]
     cmd.creation_flags(0x08000000);
     cmd.stdout(Stdio::piped());
 
     let mut child = cmd.spawn().ok()?;
+    let start = std::time::Instant::now();
 
     loop {
+        // Check if timeout has been exceeded
+        if start.elapsed() > WHICH_TIMEOUT {
+            let _ = child.kill();
+            let _ = child.wait();
+            return None;
+        }
+
         match child.try_wait() {
             Ok(Some(status)) => {
                 if status.success() {
@@ -45,6 +77,7 @@ fn run_which_command_with_timeout() -> Option<String> {
                 }
             }
             Ok(None) => {
+                // Command still running, sleep briefly before checking again
                 std::thread::sleep(Duration::from_millis(50));
             }
             Err(_) => {
@@ -56,10 +89,30 @@ fn run_which_command_with_timeout() -> Option<String> {
     }
 }
 
+/// Detects all available Java installations on the system
+///
+/// This function searches for Java installations in multiple locations:
+/// - **All platforms**: `JAVA_HOME` environment variable, `java` in PATH
+/// - **Linux**: `/usr/lib/jvm`, `/usr/java`, `/opt/java`, `/opt/jdk`, `/opt/openjdk`, SDKMAN!
+/// - **macOS**: `/Library/Java/JavaVirtualMachines`, `/System/Library/Java/JavaVirtualMachines`,
+///   Homebrew paths (`/usr/local/opt/openjdk`, `/opt/homebrew/opt/openjdk`), SDKMAN!
+/// - **Windows**: `Program Files`, `Program Files (x86)`, `LOCALAPPDATA` for various JDK distributions
+///
+/// # Returns
+/// A vector of `PathBuf` pointing to Java executables found on the system.
+/// Note: Paths may include symlinks and duplicates; callers should canonicalize and deduplicate as needed.
+///
+/// # Examples
+/// ```ignore
+/// let candidates = get_java_candidates();
+/// for java_path in candidates {
+///     println!("Found Java at: {}", java_path.display());
+/// }
+/// ```
 pub fn get_java_candidates() -> Vec<PathBuf> {
     let mut candidates = Vec::new();
 
-    // Only attempt 'which' or 'where' if is not Windows
+    // Try to find Java in PATH using 'which' or 'where' command with timeout
     // CAUTION: linux 'which' may return symlinks, so we need to canonicalize later
     if let Some(paths_str) = run_which_command_with_timeout() {
         for line in paths_str.lines() {
@@ -93,7 +146,6 @@ pub fn get_java_candidates() -> Vec<PathBuf> {
             }
         }
 
-        let home = std::env::var("HOME").unwrap_or_default();
         // Check common SDKMAN! java candidates
         if let Some(sdkman_java) = find_sdkman_java() {
             candidates.push(sdkman_java);
@@ -182,7 +234,7 @@ pub fn get_java_candidates() -> Vec<PathBuf> {
         }
     }
 
-    // Check JAVA_HOME java candidate
+    // Check JAVA_HOME environment variable
     if let Ok(java_home) = std::env::var("JAVA_HOME") {
         let bin_name = if cfg!(windows) { "java.exe" } else { "java" };
         let java_path = PathBuf::from(&java_home).join("bin").join(bin_name);

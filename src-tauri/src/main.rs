@@ -1549,7 +1549,9 @@ async fn fetch_adoptium_java(
         "jdk" => core::java::ImageType::Jdk,
         _ => core::java::ImageType::Jre,
     };
-    core::java::fetch_java_release(major_version, img_type).await
+    core::java::fetch_java_release(major_version, img_type)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Download and install Adoptium Java
@@ -1565,13 +1567,17 @@ async fn download_adoptium_java(
         _ => core::java::ImageType::Jre,
     };
     let path = custom_path.map(std::path::PathBuf::from);
-    core::java::download_and_install_java(&app_handle, major_version, img_type, path).await
+    core::java::download_and_install_java(&app_handle, major_version, img_type, path)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Get available Adoptium Java versions
 #[tauri::command]
 async fn fetch_available_java_versions() -> Result<Vec<u32>, String> {
-    core::java::fetch_available_versions().await
+    core::java::fetch_available_versions()
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Fetch Java catalog with platform availability (uses cache)
@@ -1579,7 +1585,9 @@ async fn fetch_available_java_versions() -> Result<Vec<u32>, String> {
 async fn fetch_java_catalog(
     app_handle: tauri::AppHandle,
 ) -> Result<core::java::JavaCatalog, String> {
-    core::java::fetch_java_catalog(&app_handle, false).await
+    core::java::fetch_java_catalog(&app_handle, false)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Refresh Java catalog (bypass cache)
@@ -1587,7 +1595,9 @@ async fn fetch_java_catalog(
 async fn refresh_java_catalog(
     app_handle: tauri::AppHandle,
 ) -> Result<core::java::JavaCatalog, String> {
-    core::java::fetch_java_catalog(&app_handle, true).await
+    core::java::fetch_java_catalog(&app_handle, true)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 /// Cancel current Java download

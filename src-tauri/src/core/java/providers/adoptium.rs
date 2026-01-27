@@ -1,5 +1,5 @@
 use crate::core::java::provider::JavaProvider;
-use crate::core::java::{ImageType, JavaCatalog, JavaDownloadInfo, JavaReleaseInfo};
+use crate::core::java::{ImageType, JavaCatalog, JavaDownloadInfo, JavaError, JavaReleaseInfo};
 use serde::Deserialize;
 use tauri::AppHandle;
 
@@ -69,9 +69,9 @@ impl JavaProvider for AdoptiumProvider {
         &self,
         app_handle: &AppHandle,
         force_refresh: bool,
-    ) -> Result<JavaCatalog, String> {
+    ) -> Result<JavaCatalog, JavaError> {
         if !force_refresh {
-            if let Some(cached) = super::super::load_cached_catalog(app_handle) {
+            if let Ok(Some(cached)) = crate::core::java::load_cached_catalog(app_handle) {
                 return Ok(cached);
             }
         }
@@ -86,10 +86,14 @@ impl JavaProvider for AdoptiumProvider {
             .header("Accept", "application/json")
             .send()
             .await
-            .map_err(|e| format!("Failed to fetch available releases: {}", e))?
+            .map_err(|e| {
+                JavaError::NetworkError(format!("Failed to fetch available releases: {}", e))
+            })?
             .json()
             .await
-            .map_err(|e| format!("Failed to parse available releases: {}", e))?;
+            .map_err(|e| {
+                JavaError::SerializationError(format!("Failed to parse available releases: {}", e))
+            })?;
 
         // Parallelize HTTP requests for better performance
         let mut fetch_tasks = Vec::new();
@@ -205,7 +209,7 @@ impl JavaProvider for AdoptiumProvider {
         &self,
         major_version: u32,
         image_type: ImageType,
-    ) -> Result<JavaDownloadInfo, String> {
+    ) -> Result<JavaDownloadInfo, JavaError> {
         let os = self.os_name();
         let arch = self.arch_name();
 
@@ -220,24 +224,23 @@ impl JavaProvider for AdoptiumProvider {
             .header("Accept", "application/json")
             .send()
             .await
-            .map_err(|e| format!("Network request failed: {}", e))?;
+            .map_err(|e| JavaError::NetworkError(format!("Network request failed: {}", e)))?;
 
         if !response.status().is_success() {
-            return Err(format!(
+            return Err(JavaError::NetworkError(format!(
                 "Adoptium API returned error: {} - The version/platform might be unavailable",
                 response.status()
-            ));
+            )));
         }
 
-        let assets: Vec<AdoptiumAsset> = response
-            .json()
-            .await
-            .map_err(|e| format!("Failed to parse API response: {}", e))?;
+        let assets: Vec<AdoptiumAsset> = response.json().await.map_err(|e| {
+            JavaError::SerializationError(format!("Failed to parse API response: {}", e))
+        })?;
 
         let asset = assets
             .into_iter()
             .next()
-            .ok_or_else(|| format!("Java {} {} download not found", major_version, image_type))?;
+            .ok_or_else(|| JavaError::NotFound)?;
 
         Ok(JavaDownloadInfo {
             version: asset.version.semver.clone(),
@@ -250,17 +253,16 @@ impl JavaProvider for AdoptiumProvider {
         })
     }
 
-    async fn available_versions(&self) -> Result<Vec<u32>, String> {
+    async fn available_versions(&self) -> Result<Vec<u32>, JavaError> {
         let url = format!("{}/info/available_releases", ADOPTIUM_API_BASE);
 
         let response = reqwest::get(url)
             .await
-            .map_err(|e| format!("Network request failed: {}", e))?;
+            .map_err(|e| JavaError::NetworkError(format!("Network request failed: {}", e)))?;
 
-        let releases: AvailableReleases = response
-            .json()
-            .await
-            .map_err(|e| format!("Failed to parse response: {}", e))?;
+        let releases: AvailableReleases = response.json().await.map_err(|e| {
+            JavaError::SerializationError(format!("Failed to parse response: {}", e))
+        })?;
 
         Ok(releases.available_releases)
     }
