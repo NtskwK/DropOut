@@ -10,7 +10,7 @@ const texts = {
       subtitle: 'Modern. Reproducible. Developer-Grade.',
       description: 'Built with Tauri v2 and Rust for native performance and minimal resource usage',
       start: 'Get Started',
-      features: 'Features',
+      development: 'Development',
     },
     features: {
       items: [
@@ -42,7 +42,7 @@ const texts = {
       subtitle: '现代、可复现、开发者级',
       description: '基于 Tauri v2 和 Rust 构建，拥有原生性能和极低的资源占用',
       start: '开始使用',
-      features: '功能特性',
+      development: '参与开发',
     },
     features: {
       items: [
@@ -108,9 +108,9 @@ export default function Home({ params }: Route.ComponentProps) {
             </a>
             <a
               className="bg-fd-secondary hover:bg-fd-secondary/80 text-fd-secondary-foreground font-semibold rounded-lg px-6 py-3 transition-colors cursor-pointer border border-blue-600/50"
-              href={`${localePrefix}/docs/features`}
+              href={`${localePrefix}/docs/development`}
             >
-               {t.hero.features}
+               {t.hero.development}
             </a>
           </div>
         </div>
@@ -162,7 +162,7 @@ export default function Home({ params }: Route.ComponentProps) {
           </p>
           <a
             className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg px-8 py-3 transition-colors"
-            href={`${localePrefix}/docs/getting-started`}
+            href={`${localePrefix}/docs/manual/getting-started`}
           >
             {t.cta.button}
           </a>

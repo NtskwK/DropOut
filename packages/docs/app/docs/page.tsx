@@ -11,8 +11,8 @@ import browserCollections from 'fumadocs-mdx:collections/browser';
 
 export async function loader({ params }: Route.LoaderArgs) {
   // 从路由参数获取语言，如果没有则使用默认语言
-  // URL 格式: /docs/getting-started (默认语言 zh)
-  // URL 格式: /en/docs/getting-started (英语)
+  // URL 格式: /docs/manual/getting-started (默认语言 zh)
+  // URL 格式: /en/docs/manual/getting-started (英语)
   const lang = (params.lang && i18n.languages.includes(params.lang as any))
     ? (params.lang as 'zh' | 'en')
     : (i18n.defaultLanguage as 'zh' | 'en');
