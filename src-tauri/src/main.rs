@@ -896,6 +896,7 @@ fn parse_jvm_arguments(
 }
 
 #[tauri::command]
+#[dropout_macros::api]
 async fn get_versions(
     _window: Window,
     instance_state: State<'_, core::instance::InstanceState>,
