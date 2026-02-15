@@ -6,6 +6,10 @@ use syn::{
     Expr, FnArg, Ident, ItemFn, Lit, MetaNameValue, Pat, PathArguments, ReturnType, Type,
 };
 
+use crate::attr::MacroArgs;
+
+mod attr;
+
 fn get_lit_str_value(nv: &MetaNameValue) -> Option<String> {
     // In syn v2 MetaNameValue.value is an Expr (usually Expr::Lit). Extract string literal if present.
     match &nv.value {
@@ -180,35 +184,20 @@ fn snake_to_camel(s: &str) -> String {
 
 #[proc_macro_attribute]
 pub fn api(attr: TokenStream, item: TokenStream) -> TokenStream {
-    // Parse inputs as a punctuated list of MetaNameValue (e.g. export_to = "...", import_from = "...")
-    // `MetaList` implements `Parse` so we can parse the raw attribute token stream reliably
-    struct MetaList(Punctuated<MetaNameValue, Comma>);
-    impl Parse for MetaList {
-        fn parse(input: ParseStream) -> syn::Result<Self> {
-            Ok(MetaList(Punctuated::parse_terminated(input)?))
-        }
-    }
-    let metas = parse_macro_input!(attr as MetaList).0;
+    // Parse attribute args via `darling` crate
+    let meta: MacroArgs = match syn::parse(attr) {
+        Ok(meta) => meta,
+        Err(err) => return err.into_compile_error().into(),
+    };
     let input_fn = parse_macro_input!(item as ItemFn);
 
     // Extract attribute args: export_to, import_from
-    let mut export_to: Option<String> = None;
-    let mut import_from: Option<String> = None;
-
-    for nv in metas.iter() {
-        if let Some(ident) = nv.path.get_ident() {
-            let name = ident.to_string();
-            if name == "export_to" {
-                if let Some(v) = get_lit_str_value(nv) {
-                    export_to = Some(v);
-                }
-            } else if name == "import_from" {
-                if let Some(v) = get_lit_str_value(nv) {
-                    import_from = Some(v);
-                }
-            }
-        }
-    }
+    let export_to = match (meta.export_to, meta.export_to_path) {
+        (Some(to), None) => Some(to),
+        (_, Some(path)) => Some(path),
+        (None, None) => None,
+    };
+    let import_from = meta.import_from;
 
     // Analyze function
     let fn_name_ident: Ident = input_fn.sig.ident.clone();
