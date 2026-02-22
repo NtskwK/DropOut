@@ -35,7 +35,8 @@
     },
     "onlyBuiltDependencies": [
       "@j178/prek",
-      "esbuild"
+      "esbuild",
+      "msw"
     ]
   }
 }
