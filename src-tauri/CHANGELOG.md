@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.0-alpha.3
+
+### Chores
+
+- [`7edccaf`](https://github.com/HydroRoll-Team/DropOut/commit/7edccaf1be357c0a2619a87bc1767bc6c8a95954): Release Dropout to AUR.
+
 ## v0.2.0-alpha.2
 
 ### New Features
