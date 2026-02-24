@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.0-alpha.2
+
+### New Features
+
+- [`ef56081`](https://github.com/HydroRoll-Team/DropOut/commit/ef560813c68c113325d8d84ff13cd419eb6583df): Add `ts-rs` for generating TypeScript bindings. ([#77](https://github.com/HydroRoll-Team/DropOut/pull/77) by @HsiangNianian)
+
 ## v0.2.0-alpha.1
 
 ### New Features
