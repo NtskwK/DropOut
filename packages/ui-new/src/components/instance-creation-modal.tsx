@@ -13,8 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useInstancesStore } from "@/models/instances";
 import { useGameStore } from "@/stores/game-store";
-import { useInstancesStore } from "@/stores/instances-store";
 import type { Version } from "@/types/bindings/manifest";
 import type { FabricLoaderEntry } from "../types/bindings/fabric";
 import type { ForgeVersion as ForgeVersionEntry } from "../types/bindings/forge";
@@ -25,20 +25,6 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-/**
- * InstanceCreationModal
- * 3-step wizard:
- *  1) Name
- *  2) Select base Minecraft version
- *  3) Optional: choose mod loader (vanilla/fabric/forge) and loader version
- *
- * Behavior:
- *  - On Create: invoke("create_instance", { name })
- *  - If a base version selected: invoke("install_version", { instanceId, versionId })
- *  - If Fabric selected: invoke("install_fabric", { instanceId, gameVersion, loaderVersion })
- *  - If Forge selected: invoke("install_forge", { instanceId, gameVersion, forgeVersion })
- *  - Reload instances via instancesStore.loadInstances()
- */
 export function InstanceCreationModal({ open, onOpenChange }: Props) {
   const gameStore = useGameStore();
   const instancesStore = useInstancesStore();
@@ -242,7 +228,7 @@ export function InstanceCreationModal({ open, onOpenChange }: Props) {
       }
 
       // Refresh instances list
-      await instancesStore.loadInstances();
+      await instancesStore.refresh();
 
       toast.success("Instance created successfully");
       onOpenChange(false);

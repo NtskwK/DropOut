@@ -1,5 +1,6 @@
 import { Copy, Edit2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import InstanceCreationModal from "@/components/instance-creation-modal";
 import InstanceEditorModal from "@/components/instance-editor-modal";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { toNumber } from "@/lib/tsrs-utils";
-import { useInstancesStore } from "@/stores/instances-store";
+import { useInstancesStore } from "@/models/instances";
 import type { Instance } from "../types/bindings/instance";
 
 export function InstancesView() {
@@ -31,19 +32,14 @@ export function InstancesView() {
   const [editingInstance, setEditingInstance] = useState<Instance | null>(null);
 
   // Form fields
-  const [newInstanceName, setNewInstanceName] = useState("");
   const [duplicateName, setDuplicateName] = useState("");
 
-  // Load instances on mount (matches Svelte onMount behavior)
   useEffect(() => {
-    instancesStore.loadInstances();
-    // instancesStore methods are stable (Zustand); do not add to deps to avoid spurious runs
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [instancesStore.loadInstances]);
+    instancesStore.refresh();
+  }, [instancesStore.refresh]);
 
   // Handlers to open modals
   const openCreate = () => {
-    setNewInstanceName("");
     setShowCreateModal(true);
   };
 
@@ -63,25 +59,9 @@ export function InstancesView() {
     setShowDuplicateModal(true);
   };
 
-  // Confirm actions
-  const confirmCreate = async () => {
-    const name = newInstanceName.trim();
-    if (!name) return;
-    await instancesStore.createInstance(name);
-    setShowCreateModal(false);
-    setNewInstanceName("");
-  };
-
-  const confirmEdit = async () => {
-    if (!editingInstance) return;
-    await instancesStore.updateInstance(editingInstance);
-    setEditingInstance(null);
-    setShowEditModal(false);
-  };
-
   const confirmDelete = async () => {
     if (!selectedInstance) return;
-    await instancesStore.deleteInstance(selectedInstance.id);
+    await instancesStore.delete(selectedInstance.id);
     setSelectedInstance(null);
     setShowDeleteConfirm(false);
   };
@@ -90,14 +70,10 @@ export function InstancesView() {
     if (!selectedInstance) return;
     const name = duplicateName.trim();
     if (!name) return;
-    await instancesStore.duplicateInstance(selectedInstance.id, name);
+    await instancesStore.duplicate(selectedInstance.id, name);
     setSelectedInstance(null);
     setDuplicateName("");
     setShowDuplicateModal(false);
-  };
-
-  const setActiveInstance = async (id: string) => {
-    await instancesStore.setActiveInstance(id);
   };
 
   const formatDate = (timestamp: number): string =>
@@ -124,7 +100,7 @@ export function InstancesView() {
         <Button
           type="button"
           onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          className="px-4 py-2 transition-colors"
         >
           <Plus size={18} />
           Create Instance
@@ -141,16 +117,17 @@ export function InstancesView() {
       ) : (
         <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {instancesStore.instances.map((instance) => {
-            const isActive = instancesStore.activeInstanceId === instance.id;
+            const isActive = instancesStore.activeInstance?.id === instance.id;
 
             return (
               <li
                 key={instance.id}
-                onClick={() => setActiveInstance(instance.id)}
+                onClick={() => instancesStore.setActiveInstance(instance)}
                 onKeyDown={(e) =>
-                  e.key === "Enter" && setActiveInstance(instance.id)
+                  e.key === "Enter" &&
+                  instancesStore.setActiveInstance(instance)
                 }
-                className={`relative p-4 text-left rounded-lg border-2 transition-all cursor-pointer hover:border-blue-500 ${
+                className={`relative p-4 text-left border-2 transition-all cursor-pointer hover:border-blue-500 ${
                   isActive ? "border-blue-500" : "border-transparent"
                 } bg-gray-100 dark:bg-gray-800`}
               >
@@ -245,42 +222,10 @@ export function InstancesView() {
         </ul>
       )}
 
-      {/* Create Modal */}
-      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Instance</DialogTitle>
-            <DialogDescription>
-              Enter a name for the new instance.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="mt-4">
-            <Input
-              value={newInstanceName}
-              onChange={(e) => setNewInstanceName(e.target.value)}
-              placeholder="Instance name"
-            />
-          </div>
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowCreateModal(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={confirmCreate}
-              disabled={!newInstanceName.trim()}
-            >
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <InstanceCreationModal
+        open={showCreateModal}
+        onOpenChange={setShowCreateModal}
+      />
 
       <InstanceEditorModal
         open={showEditModal}

@@ -23,7 +23,7 @@ export type JavaInstallation = {
   arch: string;
   vendor: string;
   source: string;
-  is_64bit: boolean;
+  is64bit: boolean;
 };
 
 export type JavaReleaseInfo = {

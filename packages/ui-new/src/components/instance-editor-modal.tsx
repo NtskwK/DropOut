@@ -16,8 +16,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 import { toNumber } from "@/lib/tsrs-utils";
-import { useInstancesStore } from "@/stores/instances-store";
-import { useSettingsStore } from "@/stores/settings-store";
+import { useInstancesStore } from "@/models/instances";
+import { useSettingsStore } from "@/models/settings";
 import type { FileInfo } from "../types/bindings/core";
 import type { Instance } from "../types/bindings/instance";
 
@@ -29,7 +29,7 @@ type Props = {
 
 export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
   const instancesStore = useInstancesStore();
-  const { settings } = useSettingsStore();
+  const { config } = useSettingsStore();
 
   const [activeTab, setActiveTab] = useState<
     "info" | "version" | "files" | "settings"
@@ -67,19 +67,19 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
       setEditNotes(instance.notes ?? "");
       setEditMemoryMin(
         (instance.memoryOverride && toNumber(instance.memoryOverride.min)) ??
-          settings.minMemory ??
+          config?.minMemory ??
           512,
       );
       setEditMemoryMax(
         (instance.memoryOverride && toNumber(instance.memoryOverride.max)) ??
-          settings.maxMemory ??
+          config?.maxMemory ??
           2048,
       );
       setEditJavaArgs(instance.jvmArgsOverride ?? "");
       setFileList([]);
       setSelectedFileFolder("mods");
     }
-  }, [open, instance, settings.minMemory, settings.maxMemory]);
+  }, [open, instance, config?.minMemory, config?.maxMemory]);
 
   // load files when switching to files tab
   const loadFileList = useCallback(
@@ -178,7 +178,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
         jvmArgsOverride: editJavaArgs.trim() ? editJavaArgs.trim() : null,
       };
 
-      await instancesStore.updateInstance(updatedInstance as Instance);
+      await instancesStore.update(updatedInstance as Instance);
       toast.success("Instance saved");
       onOpenChange(false);
     } catch (err) {
@@ -471,7 +471,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   disabled={saving}
                 />
                 <p className="text-xs text-zinc-400 mt-1">
-                  Default: {settings.minMemory} MB
+                  Default: {config?.minMemory} MB
                 </p>
               </div>
 
@@ -490,7 +490,7 @@ export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
                   disabled={saving}
                 />
                 <p className="text-xs text-zinc-400 mt-1">
-                  Default: {settings.maxMemory} MB
+                  Default: {config?.maxMemory} MB
                 </p>
               </div>
 

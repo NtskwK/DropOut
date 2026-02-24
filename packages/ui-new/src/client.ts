@@ -223,8 +223,12 @@ export function getVersionMetadata(
   });
 }
 
-export function getVersions(instanceId: string): Promise<Version[]> {
-  return invoke<Version[]>("get_versions", {
+export function getVersions(): Promise<Version[]> {
+  return invoke<Version[]>("get_versions");
+}
+
+export function getVersionsOfInstance(instanceId: string): Promise<Version[]> {
+  return invoke<Version[]>("get_versions_of_instance", {
     instanceId,
   });
 }

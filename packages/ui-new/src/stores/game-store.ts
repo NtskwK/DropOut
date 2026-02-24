@@ -1,6 +1,6 @@
-import { invoke } from "@tauri-apps/api/core";
 import { toast } from "sonner";
 import { create } from "zustand";
+import { getVersions } from "@/client";
 import type { Version } from "@/types/bindings/manifest";
 
 interface GameState {
@@ -39,7 +39,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     try {
       // Ask the backend for known versions (optionally scoped to an instance).
       // The Tauri command `get_versions` is expected to return an array of `Version`.
-      const versions = await invoke<Version[]>("get_versions", { instanceId });
+      const versions = await getVersions();
       set({ versions: versions ?? [] });
     } catch (e) {
       console.error("Failed to load versions:", e);

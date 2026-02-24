@@ -33,6 +33,7 @@ use providers::AdoptiumProvider;
 const CACHE_DURATION_SECS: u64 = 24 * 60 * 60;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export, export_to = "java/core.ts")]
 pub struct JavaInstallation {
     pub path: String,

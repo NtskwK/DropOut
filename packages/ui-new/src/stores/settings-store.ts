@@ -2,6 +2,7 @@ import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { toast } from "sonner";
 import { create } from "zustand";
+import { downloadAdoptiumJava } from "@/client";
 import type { ModelInfo } from "../types/bindings/assistant";
 import type { LauncherConfig } from "../types/bindings/config";
 import type {
@@ -10,7 +11,6 @@ import type {
 } from "../types/bindings/downloader";
 import type {
   JavaCatalog,
-  JavaDownloadInfo,
   JavaInstallation,
   JavaReleaseInfo,
 } from "../types/bindings/java";
@@ -445,13 +445,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     if (!selectedMajorVersion) return;
     set({ isDownloadingJava: true, javaDownloadStatus: "Starting..." });
     try {
-      const result = await invoke<JavaDownloadInfo>("download_java", {
-        majorVersion: selectedMajorVersion,
-        imageType: selectedImageType,
-        source: selectedDownloadSource,
-      });
+      const result = await downloadAdoptiumJava(
+        selectedMajorVersion,
+        selectedImageType,
+        selectedDownloadSource,
+      );
       set({
-        javaDownloadStatus: `Java ${selectedMajorVersion} download started: ${result.fileName}`,
+        javaDownloadStatus: `Java ${selectedMajorVersion} download started: ${result.path}`,
       });
       toast.success("Download started");
     } catch (e) {

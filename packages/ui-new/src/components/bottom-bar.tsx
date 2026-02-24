@@ -1,13 +1,22 @@
-import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { Check, ChevronDown, Play, User } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Play, User } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { listInstalledVersions, startGame } from "@/client";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/models/auth";
+import { useInstancesStore } from "@/models/instances";
 import { useGameStore } from "@/stores/game-store";
-import { useInstancesStore } from "@/stores/instances-store";
 import { LoginModal } from "./login-modal";
 import { Button } from "./ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 
 interface InstalledVersion {
   id: string;
@@ -19,7 +28,7 @@ export function BottomBar() {
   const gameStore = useGameStore();
   const instancesStore = useInstancesStore();
 
-  const [isVersionDropdownOpen, setIsVersionDropdownOpen] = useState(false);
+  const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
   const [installedVersions, setInstalledVersions] = useState<
     InstalledVersion[]
   >([]);
@@ -27,7 +36,7 @@ export function BottomBar() {
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   const loadInstalledVersions = useCallback(async () => {
-    if (!instancesStore.activeInstanceId) {
+    if (!instancesStore.activeInstance) {
       setInstalledVersions([]);
       setIsLoadingVersions(false);
       return;
@@ -35,9 +44,8 @@ export function BottomBar() {
 
     setIsLoadingVersions(true);
     try {
-      const versions = await invoke<InstalledVersion[]>(
-        "list_installed_versions",
-        { instanceId: instancesStore.activeInstanceId },
+      const versions = await listInstalledVersions(
+        instancesStore.activeInstance.id,
       );
 
       const installed = versions || [];
@@ -53,7 +61,7 @@ export function BottomBar() {
       setIsLoadingVersions(false);
     }
   }, [
-    instancesStore.activeInstanceId,
+    instancesStore.activeInstance,
     gameStore.selectedVersion,
     gameStore.setSelectedVersion,
   ]);
@@ -100,20 +108,23 @@ export function BottomBar() {
     };
   }, [loadInstalledVersions]);
 
-  const selectVersion = (id: string) => {
-    if (id !== "loading" && id !== "empty") {
-      gameStore.setSelectedVersion(id);
-      setIsVersionDropdownOpen(false);
-    }
-  };
-
   const handleStartGame = async () => {
+    if (!selectedVersion) {
+      toast.info("Please select a version!");
+      return;
+    }
+
+    if (!instancesStore.activeInstance) {
+      toast.info("Please select an instance first!");
+      return;
+    }
     // await gameStore.startGame(
     //   authStore.currentAccount,
     //   authStore.openLoginModal,
     //   instancesStore.activeInstanceId,
     //   uiStore.setView,
     // );
+    await startGame(instancesStore.activeInstance?.id, selectedVersion);
   };
 
   const getVersionTypeColor = (type: string) => {
@@ -131,14 +142,15 @@ export function BottomBar() {
     }
   };
 
-  const versionOptions = isLoadingVersions
-    ? [{ id: "loading", type: "loading", label: "Loading..." }]
-    : installedVersions.length === 0
-      ? [{ id: "empty", type: "empty", label: "No versions installed" }]
-      : installedVersions.map((v) => ({
-          ...v,
-          label: `${v.id}${v.type !== "release" ? ` (${v.type})` : ""}`,
-        }));
+  const versionOptions = useMemo(
+    () =>
+      installedVersions.map((v) => ({
+        label: `${v.id}${v.type !== "release" ? ` (${v.type})` : ""}`,
+        value: v.id,
+        type: v.type,
+      })),
+    [installedVersions],
+  );
 
   return (
     <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/30 via-transparent to-transparent p-4 z-10">
@@ -153,6 +165,35 @@ export function BottomBar() {
                 {instancesStore.activeInstance?.name || "No instance selected"}
               </span>
             </div>
+
+            <Select
+              items={versionOptions}
+              onValueChange={setSelectedVersion}
+              disabled={isLoadingVersions}
+            >
+              <SelectTrigger className="max-w-48">
+                <SelectValue
+                  placeholder={
+                    isLoadingVersions
+                      ? "Loading versions..."
+                      : "Please select a version"
+                  }
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {versionOptions.map((item) => (
+                    <SelectItem
+                      key={item.value}
+                      value={item.value}
+                      className={getVersionTypeColor(item.type)}
+                    >
+                      {item.label}
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex items-center gap-3">

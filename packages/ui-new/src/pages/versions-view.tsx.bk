@@ -17,8 +17,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useInstancesStore } from "../models/instances";
 import { useGameStore } from "../stores/game-store";
-import { useInstancesStore } from "../stores/instances-store";
 import type { Version } from "../types/bindings/manifest";
 
 interface InstalledModdedVersion {
@@ -31,7 +31,7 @@ type TypeFilter = "all" | "release" | "snapshot" | "installed";
 export function VersionsView() {
   const { versions, selectedVersion, loadVersions, setSelectedVersion } =
     useGameStore();
-  const { activeInstanceId } = useInstancesStore();
+  const { activeInstance } = useInstancesStore();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
@@ -54,7 +54,7 @@ export function VersionsView() {
 
   // Load installed modded versions with Java version info
   const loadInstalledModdedVersions = useCallback(async () => {
-    if (!activeInstanceId) {
+    if (!activeInstance) {
       setInstalledModdedVersions([]);
       setIsLoadingModded(false);
       return;

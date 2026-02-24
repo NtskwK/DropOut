@@ -3,13 +3,10 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import { createHashRouter, RouterProvider } from "react-router";
 import { Toaster } from "./components/ui/sonner";
-import { AssistantView } from "./pages/assistant-view";
 import { HomeView } from "./pages/home-view";
 import { IndexPage } from "./pages/index";
 import { InstancesView } from "./pages/instances-view";
 import { SettingsPage } from "./pages/settings";
-import { SettingsView } from "./pages/settings-view";
-import { VersionsView } from "./pages/versions-view";
 
 const router = createHashRouter([
   {
@@ -25,17 +22,9 @@ const router = createHashRouter([
         element: <InstancesView />,
       },
       {
-        path: "versions",
-        element: <VersionsView />,
-      },
-      {
         path: "settings",
         element: <SettingsPage />,
       },
-      // {
-      //   path: "guide",
-      //   element: <AssistantView />,
-      // },
     ],
   },
 ]);
