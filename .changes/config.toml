@@ -32,10 +32,6 @@ url = "https://crates.io/api/v1/crates/{{ package.name }}/{{ package.version }}"
 User-Agent = "Semifold 0.2.10"
 
 [[resolver.rust.publish]]
-command = "cargo"
-args = ["publish"]
-
-[[resolver.rust.publish]]
 command = "pnpm"
 args = ["tsx", "scripts/release-aur.ts"]
 

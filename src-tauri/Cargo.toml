@@ -6,7 +6,6 @@ authors = ["HsiangNianian"]
 description = "The DropOut Minecraft Game Launcher"
 repository = "https://github.com/HydroRoll-Team/DropOut"
 license = "MIT"
-publish = false
 
 [package.metadata.deb]
 depends = "libgtk-3-0"
