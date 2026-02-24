@@ -1,51 +1,62 @@
-import { Bot, Folder, Home, Package, Settings } from "lucide-react";
-import { Link, useLocation } from "react-router";
-import { useUIStore, type ViewType } from "../stores/ui-store";
+import { Folder, Home, LogOutIcon, Settings } from "lucide-react";
+import { useLocation, useNavigate } from "react-router";
+import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/models/auth";
+import { Button } from "./ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
+import { UserAvatar } from "./user-avatar";
 
 interface NavItemProps {
-  view: string;
   Icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
   label: string;
   to: string;
 }
 
-function NavItem({ view, Icon, label, to }: NavItemProps) {
-  const uiStore = useUIStore();
+function NavItem({ Icon, label, to }: NavItemProps) {
+  const navigate = useNavigate();
   const location = useLocation();
-  const isActive = location.pathname === to || uiStore.currentView === view;
+  const isActive = location.pathname === to;
 
   const handleClick = () => {
-    uiStore.setView(view as ViewType);
+    navigate(to);
   };
 
   return (
-    <Link to={to}>
-      <button
-        type="button"
-        className={`group flex items-center lg:gap-3 justify-center lg:justify-start w-full px-0 lg:px-4 py-2.5 rounded-sm transition-all duration-200 relative ${
-          isActive
-            ? "bg-black/5 dark:bg-white/10 dark:text-white text-black font-medium"
-            : "dark:text-zinc-400 text-zinc-500 hover:text-black dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
-        }`}
-        onClick={handleClick}
-      >
-        <Icon className="size-5" strokeWidth={isActive ? 2.5 : 2} />
-        <span className="hidden lg:block text-sm relative z-10">{label}</span>
-
-        {/* Active Indicator */}
-        {isActive && (
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-black dark:bg-white rounded-r-full hidden lg:block"></div>
-        )}
-      </button>
-    </Link>
+    <Button
+      variant="ghost"
+      className={cn(
+        "w-fit lg:w-full justify-center lg:justify-start",
+        isActive && "relative bg-accent",
+      )}
+      size="lg"
+      onClick={handleClick}
+    >
+      <Icon className="size-5" strokeWidth={isActive ? 2.5 : 2} />
+      <span className="hidden lg:block text-sm relative z-10">{label}</span>
+      {isActive && (
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-4 bg-black dark:bg-white rounded-r-full hidden lg:block"></div>
+      )}
+    </Button>
   );
 }
 
 export function Sidebar() {
-  const uiStore = useUIStore();
+  const authStore = useAuthStore();
 
   return (
-    <aside className="w-20 lg:w-64 dark:bg-[#09090b] bg-white border-r dark:border-white/10 border-gray-200 flex flex-col items-center lg:items-start transition-all duration-300 shrink-0 py-6 z-20">
+    <aside
+      className={cn(
+        "flex flex-col items-center lg:items-start",
+        "bg-sidebar transition-all duration-300",
+        "w-20 lg:w-64 shrink-0 py-6 h-full",
+      )}
+    >
       {/* Logo Area */}
       <div className="h-16 w-full flex items-center justify-center lg:justify-start lg:px-6 mb-6">
         {/* Icon Logo (Small) */}
@@ -145,35 +156,29 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 w-full flex flex-col gap-1 px-3">
-        <NavItem view="home" Icon={Home} label="Overview" to="/" />
-        <NavItem
-          view="instances"
-          Icon={Folder}
-          label="Instances"
-          to="/instances"
-        />
-        <NavItem
-          view="versions"
-          Icon={Package}
-          label="Versions"
-          to="/versions"
-        />
-        <NavItem view="guide" Icon={Bot} label="Assistant" to="/guide" />
-        <NavItem
-          view="settings"
-          Icon={Settings}
-          label="Settings"
-          to="/settings"
-        />
+      <nav className="w-full flex flex-col space-y-1 px-3 items-center">
+        <NavItem Icon={Home} label="Overview" to="/" />
+        <NavItem Icon={Folder} label="Instances" to="/instances" />
+        <NavItem Icon={Settings} label="Settings" to="/settings" />
       </nav>
 
-      {/* Footer Info */}
-      <div className="p-4 w-full flex justify-center lg:justify-start lg:px-6 opacity-40 hover:opacity-100 transition-opacity">
-        <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">
-          v{uiStore.appVersion}
-        </div>
+      <div className="flex-1 flex flex-col justify-end">
+        <DropdownMenu>
+          <DropdownMenuTrigger render={<UserAvatar />}>
+            Open
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" side="right" sideOffset={20}>
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={authStore.logout}
+              >
+                <LogOutIcon />
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </aside>
   );

@@ -67,6 +67,7 @@ impl std::fmt::Display for ImageType {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export, export_to = "java/core.ts")]
+#[serde(rename_all = "camelCase")]
 pub struct JavaReleaseInfo {
     pub major_version: u32,
     pub image_type: String,
@@ -83,6 +84,7 @@ pub struct JavaReleaseInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, TS)]
 #[ts(export, export_to = "java/core.ts")]
+#[serde(rename_all = "camelCase")]
 pub struct JavaCatalog {
     pub releases: Vec<JavaReleaseInfo>,
     pub available_major_versions: Vec<u32>,

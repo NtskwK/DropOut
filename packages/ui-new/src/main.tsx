@@ -7,6 +7,7 @@ import { AssistantView } from "./pages/assistant-view";
 import { HomeView } from "./pages/home-view";
 import { IndexPage } from "./pages/index";
 import { InstancesView } from "./pages/instances-view";
+import { SettingsPage } from "./pages/settings";
 import { SettingsView } from "./pages/settings-view";
 import { VersionsView } from "./pages/versions-view";
 
@@ -29,12 +30,12 @@ const router = createHashRouter([
       },
       {
         path: "settings",
-        element: <SettingsView />,
+        element: <SettingsPage />,
       },
-      {
-        path: "guide",
-        element: <AssistantView />,
-      },
+      // {
+      //   path: "guide",
+      //   element: <AssistantView />,
+      // },
     ],
   },
 ]);

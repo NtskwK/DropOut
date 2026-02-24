@@ -26,7 +26,7 @@ export type MinecraftProfile = { id: string; name: string };
 export type OfflineAccount = { username: string; uuid: string };
 
 export type TokenResponse = {
-  accessToken: string;
-  refreshToken: string | null;
-  expiresIn: bigint;
+  access_token: string;
+  refresh_token: string | null;
+  expires_in: bigint;
 };

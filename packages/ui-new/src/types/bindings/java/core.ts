@@ -2,9 +2,9 @@
 
 export type JavaCatalog = {
   releases: Array<JavaReleaseInfo>;
-  available_major_versions: Array<number>;
-  lts_versions: Array<number>;
-  cached_at: bigint;
+  availableMajorVersions: Array<number>;
+  ltsVersions: Array<number>;
+  cachedAt: bigint;
 };
 
 export type JavaDownloadInfo = {
@@ -27,15 +27,15 @@ export type JavaInstallation = {
 };
 
 export type JavaReleaseInfo = {
-  major_version: number;
-  image_type: string;
+  majorVersion: number;
+  imageType: string;
   version: string;
-  release_name: string;
-  release_date: string | null;
-  file_size: bigint;
+  releaseName: string;
+  releaseDate: string | null;
+  fileSize: bigint;
   checksum: string | null;
-  download_url: string;
-  is_lts: boolean;
-  is_available: boolean;
+  downloadUrl: string;
+  isLts: boolean;
+  isAvailable: boolean;
   architecture: string;
 };
