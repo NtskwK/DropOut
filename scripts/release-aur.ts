@@ -124,7 +124,7 @@ execSync("makepkg --printsrcinfo > .SRCINFO", {
 });
 
 // Setup Git repository
-execSync("git add PKGBUILD .SRCINFO", {
+execSync("git add PKGBUILD .SRCINFO dropout-bin.install", {
   stdio: "inherit",
   cwd: "aur",
 });
