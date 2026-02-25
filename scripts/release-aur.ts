@@ -9,10 +9,12 @@ import {
 import path from "node:path";
 import { version as pkgver } from "../src-tauri/tauri.conf.json";
 
-function getSHA256Sum(url: string) {
-  const response = execSync(`curl -L ${url} | sha256sum`);
+function getSHA256Sum(filePath: string) {
+  const response = execSync(`sha256sum ${filePath}`);
   return response.toString().split(" ")[0];
 }
+
+const projectRoot = path.resolve(__dirname, "..");
 
 execSync("mkdir -p release", { stdio: "inherit" });
 process.chdir("release");
@@ -31,7 +33,7 @@ const PKGBUILD = `\
 # Maintainer: HsiangNianian <i@jyunko.cn>
 # Contributor: 苏向夜 <fu050409@163.com>
 pkgname=dropout-bin
-pkgver=${pkgver}
+pkgver=${pkgver.replace("-", "_")}
 pkgrel=1
 pkgdesc="A modern, reproducible, and developer-grade Minecraft launcher"
 arch=('x86_64' 'aarch64')
@@ -42,13 +44,14 @@ options=('!strip' '!debug')
 install=dropout-bin.install
 source_x86_64=("${x86_64Url}")
 source_aarch64=("${aarch64Url}")
-sha256sums_x86_64=('${getSHA256Sum(x86_64Url)}')
-sha256sums_aarch64=('${getSHA256Sum(aarch64Url)}')
+sha256sums_x86_64=('${getSHA256Sum(path.resolve(projectRoot, "artifacts/deb", `dropout_${pkgver}_amd64.deb`))}')
+sha256sums_aarch64=('${getSHA256Sum(path.resolve(projectRoot, "artifacts/deb", `dropout_${pkgver}_arm64.deb`))}')
 package() {
   # Extract package data
   tar -xvf data.tar.gz -C "\${pkgdir}"
 }
 `;
+console.log(PKGBUILD);
 const INSTALL = `\
 post_install() {
   gtk-update-icon-cache -q -t -f usr/share/icons/hicolor
@@ -63,6 +66,7 @@ post_remove() {
   gtk-update-icon-cache -q -t -f usr/share/icons/hicolor
   update-desktop-database -q
 }`;
+console.log(INSTALL);
 
 // Check if AUR_SSH_KEY environment variable is set
 const AUR_SSH_KEY = process.env.AUR_SSH_KEY;
