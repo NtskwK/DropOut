@@ -33,7 +33,7 @@ User-Agent = "Semifold 0.2.10"
 
 [[resolver.rust.publish]]
 command = "pnpm"
-args = ["tsx", "scripts/release-aur.ts"]
+args = ["tsx", "../scripts/release-aur.ts"]
 
 [[resolver.rust.post-version]]
 command = "pnpm"
