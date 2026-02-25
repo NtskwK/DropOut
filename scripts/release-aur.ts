@@ -27,8 +27,8 @@ if (!existsSync(sshPath)) {
 }
 
 const url = "https://github.com/HydroRoll-Team/DropOut";
-const x86_64Url = `${url}/releases/download/dropout-v${pkgver}/dropout_${pkgver}_amd64.deb`;
-const aarch64Url = `${url}/releases/download/dropout-v${pkgver}/dropout_${pkgver}_arm64.deb`;
+const x86_64Url = `${url}/releases/download/dropout-v${pkgver}/Dropout_${pkgver}_amd64.deb`;
+const aarch64Url = `${url}/releases/download/dropout-v${pkgver}/Dropout_${pkgver}_arm64.deb`;
 const PKGBUILD = `\
 # Maintainer: HsiangNianian <i@jyunko.cn>
 # Contributor: 苏向夜 <fu050409@163.com>
@@ -44,8 +44,8 @@ options=('!strip' '!debug')
 install=dropout-bin.install
 source_x86_64=("${x86_64Url}")
 source_aarch64=("${aarch64Url}")
-sha256sums_x86_64=('${getSHA256Sum(path.resolve(projectRoot, "artifacts/deb", `dropout_${pkgver}_amd64.deb`))}')
-sha256sums_aarch64=('${getSHA256Sum(path.resolve(projectRoot, "artifacts/deb", `dropout_${pkgver}_arm64.deb`))}')
+sha256sums_x86_64=('${getSHA256Sum(path.resolve(projectRoot, "artifacts/deb", `Dropout_${pkgver}_amd64.deb`))}')
+sha256sums_aarch64=('${getSHA256Sum(path.resolve(projectRoot, "artifacts/deb", `Dropout_${pkgver}_arm64.deb`))}')
 package() {
   # Extract package data
   tar -xvf data.tar.gz -C "\${pkgdir}"
