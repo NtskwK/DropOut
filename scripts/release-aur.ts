@@ -107,7 +107,7 @@ if (existsSync(knownHostsPath)) {
 // Clone AUR repository if not exists
 if (!existsSync("aur")) {
   execSync(
-    `git -c init.defaultBranch=master -c core.sshCommand="ssh -i ${aurSSHKeyPath}" clone ssh://aur@aur.archlinux.org/clip-bridge-bin.git aur`,
+    `git -c init.defaultBranch=master -c core.sshCommand="ssh -i ${aurSSHKeyPath}" clone ssh://aur@aur.archlinux.org/dropout-bin.git aur`,
     { stdio: "inherit" },
   );
 }
