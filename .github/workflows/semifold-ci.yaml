@@ -183,8 +183,6 @@ jobs:
           node-version: 22
           cache: "pnpm"
           cache-dependency-path: "pnpm-lock.yaml"
-      - name: Install Makepkg
-        run: sudo apt-get update && sudo apt-get install -y makepkg pacman
       - name: Install Node.js Dependencies
         run: pnpm install
       - name: Download build artifacts
