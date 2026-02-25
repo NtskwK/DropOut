@@ -1,15 +1,5 @@
 # Changelog
 
-## v0.2.0-alpha.3
-
-### Chores
-
-- [`7edccaf`](https://github.com/HydroRoll-Team/DropOut/commit/7edccaf1be357c0a2619a87bc1767bc6c8a95954): Release Dropout to AUR.
-
-### New Features
-
-- [`26f299f`](https://github.com/HydroRoll-Team/DropOut/commit/26f299f1e2da116a8702a87e887e17ba3f822d64): Improve tauri app name from `dropout` to `Dropout Launcher`.
-
 ## v0.2.0-alpha.2
 
 ### New Features
