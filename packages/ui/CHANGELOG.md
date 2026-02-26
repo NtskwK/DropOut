@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.0-alpha.2
+
+### Chores
+
+- [`2cef6e8`](https://github.com/HydroRoll-Team/DropOut/commit/2cef6e86b4fd45549ee2a4f7ea54a142690117d2): Fix version of `@dropout/ui`.
+
 ## v0.0.0-alpha.1
 
 ### New Features
