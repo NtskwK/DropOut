@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.0.0-alpha.1
+
+### New Features
+
+- [`120c0a4`](https://github.com/HydroRoll-Team/DropOut/commit/120c0a460162226446cce4cfbc4c7e5859cd9d09): Listen to `game-exited` event while launching game.
+
+### Refactors
+
+- [`d95ca28`](https://github.com/HydroRoll-Team/DropOut/commit/d95ca2801c19a89a2a845f43b6e0133bf4e9be50): Migrate tauri invokes of instance creation modal to generated client.
+
 ## v0.0.0-alpha.0
 
 ### Refactors
