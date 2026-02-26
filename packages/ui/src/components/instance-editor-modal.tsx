@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 import { toNumber } from "@/lib/tsrs-utils";
-import { useInstancesStore } from "@/models/instances";
+import { useInstanceStore } from "@/models/instance";
 import { useSettingsStore } from "@/models/settings";
 import type { FileInfo } from "../types/bindings/core";
 import type { Instance } from "../types/bindings/instance";
@@ -28,7 +28,7 @@ type Props = {
 };
 
 export function InstanceEditorModal({ open, instance, onOpenChange }: Props) {
-  const instancesStore = useInstancesStore();
+  const instancesStore = useInstanceStore();
   const { config } = useSettingsStore();
 
   const [activeTab, setActiveTab] = useState<

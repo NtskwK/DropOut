@@ -12,39 +12,35 @@ import {
 } from "@/client";
 import type { Instance } from "@/types";
 
-interface InstancesState {
-  // State
+interface InstanceState {
   instances: Instance[];
   activeInstance: Instance | null;
 
-  // Actions
   refresh: () => Promise<void>;
   create: (name: string) => Promise<Instance | null>;
   delete: (id: string) => Promise<void>;
   update: (instance: Instance) => Promise<void>;
   setActiveInstance: (instance: Instance) => Promise<void>;
   duplicate: (id: string, newName: string) => Promise<Instance | null>;
-  getInstance: (id: string) => Promise<Instance | null>;
+  get: (id: string) => Promise<Instance | null>;
 }
 
-export const useInstancesStore = create<InstancesState>((set, get) => ({
-  // Initial state
+export const useInstanceStore = create<InstanceState>((set, get) => ({
   instances: [],
   activeInstance: null,
 
-  // Actions
   refresh: async () => {
     const { setActiveInstance } = get();
     try {
       const instances = await listInstances();
-      const active = await getActiveInstance();
+      const activeInstance = await getActiveInstance();
 
-      if (!active && instances.length > 0) {
+      if (!activeInstance && instances.length > 0) {
         // If no active instance but instances exist, set the first one as active
         await setActiveInstance(instances[0]);
       }
 
-      set({ instances });
+      set({ instances, activeInstance });
     } catch (e) {
       console.error("Failed to load instances:", e);
       toast.error("Error loading instances");
@@ -124,7 +120,7 @@ export const useInstancesStore = create<InstancesState>((set, get) => ({
     }
   },
 
-  getInstance: async (id) => {
+  get: async (id) => {
     try {
       return await getInstance(id);
     } catch (e) {

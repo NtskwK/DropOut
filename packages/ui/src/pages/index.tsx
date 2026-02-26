@@ -3,18 +3,21 @@ import { Outlet, useLocation } from "react-router";
 import { ParticleBackground } from "@/components/particle-background";
 import { Sidebar } from "@/components/sidebar";
 import { useAuthStore } from "@/models/auth";
+import { useInstanceStore } from "@/models/instance";
 import { useSettingsStore } from "@/models/settings";
 
 export function IndexPage() {
   const authStore = useAuthStore();
   const settingsStore = useSettingsStore();
+  const instanceStore = useInstanceStore();
 
   const location = useLocation();
 
   useEffect(() => {
     authStore.init();
     settingsStore.refresh();
-  }, [authStore.init, settingsStore.refresh]);
+    instanceStore.refresh();
+  }, [authStore.init, settingsStore.refresh, instanceStore.refresh]);
 
   return (
     <div className="relative h-screen w-full overflow-hidden bg-background font-sans">

@@ -13,11 +13,11 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { toNumber } from "@/lib/tsrs-utils";
-import { useInstancesStore } from "@/models/instances";
+import { useInstanceStore } from "@/models/instance";
 import type { Instance } from "../types/bindings/instance";
 
 export function InstancesView() {
-  const instancesStore = useInstancesStore();
+  const instancesStore = useInstanceStore();
 
   // Modal / UI state
   const [showCreateModal, setShowCreateModal] = useState(false);

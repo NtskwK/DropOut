@@ -1,7 +1,13 @@
-import { invoke } from "@tauri-apps/api/core";
 import { Loader2, Search } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import {
+  getFabricLoadersForVersion,
+  getForgeVersionsForGame,
+  installFabric,
+  installForge,
+  installVersion,
+} from "@/client";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,12 +19,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useInstancesStore } from "@/models/instances";
+import { useInstanceStore } from "@/models/instance";
 import { useGameStore } from "@/stores/game-store";
-import type { Version } from "@/types/bindings/manifest";
-import type { FabricLoaderEntry } from "../types/bindings/fabric";
-import type { ForgeVersion as ForgeVersionEntry } from "../types/bindings/forge";
-import type { Instance } from "../types/bindings/instance";
+import type {
+  FabricLoaderEntry,
+  ForgeVersion as ForgeVersionEntry,
+  Version,
+} from "@/types";
 
 interface Props {
   open: boolean;
@@ -27,7 +34,7 @@ interface Props {
 
 export function InstanceCreationModal({ open, onOpenChange }: Props) {
   const gameStore = useGameStore();
-  const instancesStore = useInstancesStore();
+  const instancesStore = useInstanceStore();
 
   // Steps: 1 = name, 2 = version, 3 = mod loader
   const [step, setStep] = useState<number>(1);
@@ -61,12 +68,7 @@ export function InstanceCreationModal({ open, onOpenChange }: Props) {
     setForgeVersions([]);
     try {
       if (modLoaderType === "fabric") {
-        const loaders = await invoke<FabricLoaderEntry[]>(
-          "get_fabric_loaders_for_version",
-          {
-            gameVersion: selectedVersionUI.id,
-          },
-        );
+        const loaders = await getFabricLoadersForVersion(selectedVersionUI.id);
         setFabricLoaders(loaders || []);
         if (loaders && loaders.length > 0) {
           setSelectedFabricLoader(loaders[0].loader.version);
@@ -74,12 +76,7 @@ export function InstanceCreationModal({ open, onOpenChange }: Props) {
           setSelectedFabricLoader("");
         }
       } else if (modLoaderType === "forge") {
-        const versions = await invoke<ForgeVersionEntry[]>(
-          "get_forge_versions_for_game",
-          {
-            gameVersion: selectedVersionUI.id,
-          },
-        );
+        const versions = await getForgeVersionsForGame(selectedVersionUI.id);
         setForgeVersions(versions || []);
         if (versions && versions.length > 0) {
           // Binding `ForgeVersion` uses `version` (not `id`) — use `.version` here.
@@ -182,17 +179,12 @@ export function InstanceCreationModal({ open, onOpenChange }: Props) {
 
     try {
       // Step 1: create instance
-      const instance = await invoke<Instance>("create_instance", {
-        name: instanceName.trim(),
-      });
+      const instance = await instancesStore.create(instanceName.trim());
 
       // If selectedVersion provided, install it
-      if (selectedVersionUI) {
+      if (selectedVersionUI && instance) {
         try {
-          await invoke("install_version", {
-            instanceId: instance.id,
-            versionId: selectedVersionUI.id,
-          });
+          await installVersion(instance?.id, selectedVersionUI.id);
         } catch (err) {
           console.error("Failed to install base version:", err);
           // continue - instance created but version install failed
@@ -203,24 +195,24 @@ export function InstanceCreationModal({ open, onOpenChange }: Props) {
       }
 
       // If mod loader selected, install it
-      if (modLoaderType === "fabric" && selectedFabricLoader) {
+      if (modLoaderType === "fabric" && selectedFabricLoader && instance) {
         try {
-          await invoke("install_fabric", {
-            instanceId: instance.id,
-            gameVersion: selectedVersionUI?.id ?? "",
-            loaderVersion: selectedFabricLoader,
-          });
+          await installFabric(
+            instance?.id,
+            selectedVersionUI?.id ?? "",
+            selectedFabricLoader,
+          );
         } catch (err) {
           console.error("Failed to install Fabric:", err);
           toast.error(`Failed to install Fabric: ${String(err)}`);
         }
-      } else if (modLoaderType === "forge" && selectedForgeLoader) {
+      } else if (modLoaderType === "forge" && selectedForgeLoader && instance) {
         try {
-          await invoke("install_forge", {
-            instanceId: instance.id,
-            gameVersion: selectedVersionUI?.id ?? "",
-            installerVersion: selectedForgeLoader,
-          });
+          await installForge(
+            instance?.id,
+            selectedVersionUI?.id ?? "",
+            selectedForgeLoader,
+          );
         } catch (err) {
           console.error("Failed to install Forge:", err);
           toast.error(`Failed to install Forge: ${String(err)}`);
