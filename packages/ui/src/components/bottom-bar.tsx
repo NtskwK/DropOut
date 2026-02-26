@@ -1,11 +1,11 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { Play, User } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Play, User, XIcon } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { listInstalledVersions, startGame } from "@/client";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/models/auth";
-import { useInstancesStore } from "@/models/instances";
+import { useInstanceStore } from "@/models/instance";
 import { useGameStore } from "@/stores/game-store";
 import { LoginModal } from "./login-modal";
 import { Button } from "./ui/button";
@@ -17,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import { Spinner } from "./ui/spinner";
 
 interface InstalledVersion {
   id: string;
@@ -26,8 +27,11 @@ interface InstalledVersion {
 export function BottomBar() {
   const authStore = useAuthStore();
   const gameStore = useGameStore();
-  const instancesStore = useInstancesStore();
+  const instancesStore = useInstanceStore();
 
+  const [isLaunched, setIsLaunched] = useState<boolean>(false);
+  const gameUnlisten = useRef<UnlistenFn | null>(null);
+  const [isLaunching, setIsLaunching] = useState<boolean>(false);
   const [selectedVersion, setSelectedVersion] = useState<string | null>(null);
   const [installedVersions, setInstalledVersions] = useState<
     InstalledVersion[]
@@ -118,13 +122,25 @@ export function BottomBar() {
       toast.info("Please select an instance first!");
       return;
     }
-    // await gameStore.startGame(
-    //   authStore.currentAccount,
-    //   authStore.openLoginModal,
-    //   instancesStore.activeInstanceId,
-    //   uiStore.setView,
-    // );
-    await startGame(instancesStore.activeInstance?.id, selectedVersion);
+
+    try {
+      gameUnlisten.current = await listen("game-exited", () => {
+        setIsLaunched(false);
+      });
+    } catch (error) {
+      toast.warning(`Failed to listen to game-exited event: ${error}`);
+    }
+
+    setIsLaunching(true);
+    try {
+      await startGame(instancesStore.activeInstance?.id, selectedVersion);
+      setIsLaunched(true);
+    } catch (error) {
+      console.error(`Failed to start game: ${error}`);
+      toast.error(`Failed to start game: ${error}`);
+    } finally {
+      setIsLaunching(false);
+    }
   };
 
   const getVersionTypeColor = (type: string) => {
@@ -151,6 +167,48 @@ export function BottomBar() {
       })),
     [installedVersions],
   );
+
+  const renderButton = () => {
+    if (!authStore.account) {
+      return (
+        <Button
+          className="px-4 py-2"
+          size="lg"
+          onClick={() => setShowLoginModal(true)}
+        >
+          <User /> Login
+        </Button>
+      );
+    }
+
+    return isLaunched ? (
+      <Button
+        variant="destructive"
+        onClick={() => {
+          toast.warning(
+            "Minecraft Process will not be terminated, please close it manually.",
+          );
+          setIsLaunched(false);
+        }}
+      >
+        <XIcon />
+        Game started
+      </Button>
+    ) : (
+      <Button
+        className={cn(
+          "px-4 py-2 shadow-xl",
+          "bg-emerald-600! hover:bg-emerald-500!",
+        )}
+        size="lg"
+        onClick={handleStartGame}
+        disabled={isLaunching}
+      >
+        {isLaunching ? <Spinner /> : <Play />}
+        Start
+      </Button>
+    );
+  };
 
   return (
     <div className="absolute bottom-0 left-0 right-0 bg-linear-to-t from-black/30 via-transparent to-transparent p-4 z-10">
@@ -196,29 +254,7 @@ export function BottomBar() {
             </Select>
           </div>
 
-          <div className="flex items-center gap-3">
-            {authStore.account ? (
-              <Button
-                className={cn(
-                  "px-4 py-2 shadow-xl",
-                  "bg-emerald-600! hover:bg-emerald-500!",
-                )}
-                size="lg"
-                onClick={handleStartGame}
-              >
-                <Play />
-                Start
-              </Button>
-            ) : (
-              <Button
-                className="px-4 py-2"
-                size="lg"
-                onClick={() => setShowLoginModal(true)}
-              >
-                <User /> Login
-              </Button>
-            )}
-          </div>
+          <div className="flex items-center gap-3">{renderButton()}</div>
         </div>
       </div>
 
