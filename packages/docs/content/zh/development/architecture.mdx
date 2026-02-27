@@ -31,49 +31,51 @@ DropOut 采用现代技术栈构建，旨在实现高性能、安全性和跨平
 
 ## 系统架构
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                  前端（Svelte 5）                        │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐ │
-│  │  Stores  │  │Components│  │ UI Views │  │Particles│ │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬────┘ │
-│       │             │             │              │      │
-│       └─────────────┴─────────────┴──────────────┘      │
-│                          │                              │
-│                   Tauri 命令                            │
-│                    事件/发射器                          │
-└──────────────────────────┬──────────────────────────────┘
-                           │
-┌──────────────────────────┴──────────────────────────────┐
-│                后端（Rust/Tauri）                        │
-│  ┌─────────────────────────────────────────────────┐    │
-│  │               main.rs（命令）                    │    │
-│  └──────────────┬──────────────────────────────────┘    │
-│                 │                                        │
-│  ┌──────────────┴───────────────────────────────┐       │
-│  │               核心模块                       │       │
-│  │  ┌──────┐ ┌────────┐ ┌──────┐ ┌──────────┐  │       │
-│  │  │ Auth │ │Download│ │ Java │ │ Instance │  │       │
-│  │  └──────┘ └────────┘ └──────┘ └──────────┘  │       │
-│  │  ┌──────┐ ┌────────┐ ┌──────┐ ┌──────────┐  │       │
-│  │  │Fabric│ │ Forge  │ │Config│ │Manifest  │  │       │
-│  │  └──────┘ └────────┘ └──────┘ └──────────┘  │       │
-│  └──────────────────────────────────────────────┘       │
-│                                                          │
-│  ┌─────────────────────────────────────────────────┐    │
-│  │                工具和辅助函数                    │    │
-│  │  • ZIP 提取  • 路径工具                         │    │
-│  └─────────────────────────────────────────────────┘    │
-└──────────────────────────┬──────────────────────────────┘
-                           │
-                    外部 API
-                           │
-        ┌──────────────────┼──────────────────┐
-        │                  │                  │
-  ┌─────┴────┐      ┌──────┴─────┐    ┌──────┴─────┐
-  │  Mojang  │      │   Fabric   │    │   Forge    │
-  │   APIs   │      │    Meta    │    │   Maven    │
-  └──────────┘      └────────────┘    └────────────┘
+```mermaid
+graph TB
+    subgraph Frontend["前端 (Svelte 5)"]
+        direction LR
+        Stores[Stores] ~~~ Components[Components] ~~~ UIViews[UI Views] ~~~ Particles[Particles]
+    end
+
+    subgraph TauriLayer["Tauri 通信层"]
+        direction LR
+        Commands[命令] ~~~ Events[事件/发射器]
+    end
+
+    subgraph Backend["后端 (Rust/Tauri)"]
+        direction TB
+        MainRS[main.rs 命令处理]
+
+        subgraph CoreModules["核心模块"]
+            direction LR
+            Auth[Auth] ~~~ Download[Download] ~~~ Java[Java] ~~~ Instance[Instance]
+            Fabric[Fabric] ~~~ Forge[Forge] ~~~ Config[Config] ~~~ Manifest[Manifest]
+            Auth ~~~ Fabric
+        end
+
+        subgraph Utils["工具和辅助函数"]
+            direction LR
+            ZipExtract[ZIP 提取] ~~~ PathUtils[路径工具]
+        end
+
+        MainRS --> CoreModules
+        CoreModules --> Utils
+    end
+
+    subgraph ExternalAPIs["外部 API"]
+        direction LR
+        Mojang[Mojang APIs] ~~~ FabricMeta[Fabric Meta] ~~~ ForgeMaven[Forge Maven]
+    end
+
+    Frontend <--> TauriLayer
+    TauriLayer <--> Backend
+    Backend <--> ExternalAPIs
+
+    style Frontend fill:#e3f2fd
+    style Backend fill:#fff3e0
+    style TauriLayer fill:#f3e5f5
+    style ExternalAPIs fill:#e8f5e9
 ```
 
 ## 核心组件

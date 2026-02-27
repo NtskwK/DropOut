@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:v14.fumadocs.dev)",
+      "mcp__duckduckgo-mcp-server__fetch_content",
+      "mcp__duckduckgo-mcp-server__search",
+      "WebSearch",
+      "Bash(pnpm add:*)"
+    ]
+  }
+}

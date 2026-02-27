@@ -8,6 +8,7 @@ import { i18n } from '@/lib/i18n';
 import { baseOptions } from '@/lib/layout.shared';
 import { useFumadocsLoader } from 'fumadocs-core/source/client';
 import browserCollections from 'fumadocs-mdx:collections/browser';
+import { Mermaid } from '@/components/mermaid';
 
 export async function loader({ params }: Route.LoaderArgs) {
   // 从路由参数获取语言，如果没有则使用默认语言
@@ -41,17 +42,18 @@ const clientLoader = browserCollections.docs.createClientLoader({
         {/* <DocsTitle>{frontmatter.title}</DocsTitle>
         <DocsDescription>{frontmatter.description}</DocsDescription> */}
         <DocsBody>
-          <Mdx 
-            components={{ 
-              ...defaultMdxComponents, 
+          <Mdx
+            components={{
+              ...defaultMdxComponents,
               Card: (props: any) => (
-                <Card 
-                  {...props} 
-                  className={`border-blue-600/20 hover:border-blue-600/50 transition-colors ${props.className || ''}`} 
+                <Card
+                  {...props}
+                  className={`border-blue-600/20 hover:border-blue-600/50 transition-colors ${props.className || ''}`}
                 />
-              ), 
-              Cards 
-            }} 
+              ),
+              Cards,
+              Mermaid
+            }}
           />
         </DocsBody>
       </DocsPage>
