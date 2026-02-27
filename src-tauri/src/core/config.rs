@@ -3,8 +3,11 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
+use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "config.ts")]
 #[serde(default)]
 pub struct AssistantConfig {
     pub enabled: bool,
@@ -43,7 +46,9 @@ impl Default for AssistantConfig {
 }
 
 /// Feature-gated arguments configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "config.ts")]
 #[serde(default)]
 pub struct FeatureFlags {
     /// Demo user: enables demo-related arguments when rules require it
@@ -70,7 +75,9 @@ impl Default for FeatureFlags {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export, export_to = "config.ts")]
 #[serde(default)]
 pub struct LauncherConfig {
     pub min_memory: u32, // in MB
