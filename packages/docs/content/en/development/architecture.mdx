@@ -15,10 +15,12 @@ DropOut is built with a modern tech stack designed for performance, security, an
 - **Async Runtime**: Tokio
 - **HTTP Client**: reqwest with native-tls
 
-### Frontend (Svelte)
-- **Framework**: Svelte 5 (with runes)
+### Frontend (React)
+- **Framework**: React 19
+- **State Management**: Zustand
+- **Router**: React Router v7
 - **Styling**: Tailwind CSS 4
-- **Build Tool**: Vite with Rolldown
+- **Build Tool**: Vite (with Rolldown)
 - **Package Manager**: pnpm
 
 ### Documentation
@@ -28,75 +30,85 @@ DropOut is built with a modern tech stack designed for performance, security, an
 
 ## System Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                    Frontend (Svelte 5)                   │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐ │
-│  │  Stores  │  │Components│  │ UI Views │  │Particles│ │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘  └────┬────┘ │
-│       │             │             │              │      │
-│       └─────────────┴─────────────┴──────────────┘      │
-│                          │                              │
-│                   Tauri Commands                        │
-│                    Events/Emitters                      │
-└──────────────────────────┬──────────────────────────────┘
-                           │
-┌──────────────────────────┴──────────────────────────────┐
-│                  Backend (Rust/Tauri)                    │
-│  ┌─────────────────────────────────────────────────┐    │
-│  │               main.rs (Commands)                 │    │
-│  └──────────────┬──────────────────────────────────┘    │
-│                 │                                        │
-│  ┌──────────────┴───────────────────────────────┐       │
-│  │               Core Modules                   │       │
-│  │  ┌──────┐ ┌────────┐ ┌──────┐ ┌──────────┐  │       │
-│  │  │ Auth │ │Download│ │ Java │ │ Instance │  │       │
-│  │  └──────┘ └────────┘ └──────┘ └──────────┘  │       │
-│  │  ┌──────┐ ┌────────┐ ┌──────┐ ┌──────────┐  │       │
-│  │  │Fabric│ │ Forge  │ │Config│ │Manifest  │  │       │
-│  │  └──────┘ └────────┘ └──────┘ └──────────┘  │       │
-│  └──────────────────────────────────────────────┘       │
-│                                                          │
-│  ┌─────────────────────────────────────────────────┐    │
-│  │                Utils & Helpers                   │    │
-│  │  • ZIP extraction  • Path utilities             │    │
-│  └─────────────────────────────────────────────────┘    │
-└──────────────────────────┬──────────────────────────────┘
-                           │
-                    External APIs
-                           │
-        ┌──────────────────┼──────────────────┐
-        │                  │                  │
-  ┌─────┴────┐      ┌──────┴─────┐    ┌──────┴─────┐
-  │  Mojang  │      │   Fabric   │    │   Forge    │
-  │   APIs   │      │    Meta    │    │   Maven    │
-  └──────────┘      └────────────┘    └────────────┘
+```mermaid
+graph TB
+    subgraph Frontend["Frontend (React 19)"]
+        direction LR
+        Stores[Zustand Stores] ~~~ Components[Components] ~~~ Pages[Pages] ~~~ Router[Router] ~~~ Particles[Particle Background]
+    end
+
+    subgraph TauriLayer["Tauri Communication"]
+        direction LR
+        Commands[Commands] ~~~ Events[Events/Emitters]
+    end
+
+    subgraph Backend["Backend (Rust/Tauri)"]
+        direction TB
+        MainRS[main.rs Command Handler]
+
+        subgraph CoreModules["Core Modules"]
+            direction LR
+            Auth[Auth] ~~~ Download[Download] ~~~ Java[Java] ~~~ Instance[Instance]
+            Fabric[Fabric] ~~~ Forge[Forge] ~~~ Config[Config] ~~~ Manifest[Manifest]
+            Auth ~~~ Fabric
+        end
+
+        subgraph Utils["Utils & Helpers"]
+            direction LR
+            ZipExtract[ZIP Extract] ~~~ PathUtils[Path Utils]
+        end
+
+        MainRS --> CoreModules
+        CoreModules --> Utils
+    end
+
+    subgraph ExternalAPIs["External APIs"]
+        direction LR
+        Mojang[Mojang APIs] ~~~ FabricMeta[Fabric Meta] ~~~ ForgeMaven[Forge Maven]
+    end
+
+    Frontend <--> TauriLayer
+    TauriLayer <--> Backend
+    Backend <--> ExternalAPIs
+
+    style Frontend fill:#e3f2fd
+    style Backend fill:#fff3e0
+    style TauriLayer fill:#f3e5f5
+    style ExternalAPIs fill:#e8f5e9
 ```
 
 ## Core Components
 
 ### Frontend State Management
 
-DropOut uses **Svelte 5 runes** for reactive state management:
+DropOut uses **Zustand** for global state management:
 
 ```typescript
-// stores/auth.svelte.ts
-export class AuthState {
-  currentAccount = $state<Account | null>(null);  // Reactive
-  isLoginModalOpen = $state(false);
-  
-  $effect(() => {  // Side effects
-    // Auto-runs when dependencies change
-  });
+// models/auth.ts
+import { create } from "zustand";
+
+interface AuthState {
+  account: Account | null;
+  loginMode: LoginMode | null;
+  // ...
+  setAccount: (account: Account | null) => void;
 }
+
+export const useAuthStore = create<AuthState>((set) => ({
+  account: null,
+  loginMode: null,
+  setAccount: (account) => set({ account }),
+  // ...
+}));
 ```
 
 **Key Stores:**
-- `auth.svelte.ts`: Authentication state and login flow
-- `settings.svelte.ts`: Launcher settings and Java detection
-- `game.svelte.ts`: Game running state and logs
-- `instances.svelte.ts`: Instance management
-- `ui.svelte.ts`: UI state (toasts, modals, active view)
+- `models/auth.ts`: Authentication state and login flow
+- `models/settings.ts`: Launcher settings and Java detection
+- `models/instance.ts`: Instance management
+- `stores/game-store.ts`: Game running state status
+- `stores/logs-store.ts`: Game log stream management
+- `stores/ui-store.ts`: UI state (toasts, modals, active view)
 
 ### Backend Architecture
 
@@ -213,7 +225,7 @@ const result = await invoke("start_game", { versionId: "1.20.4" });
 ### Game Launch Sequence
 
 1. **Frontend**: User clicks "Launch Game"
-2. **Command**: `start_game(version_id)` invoked
+2. **Command**: `start_game(instance_id, version_id)` invoked
 3. **Backend Processing**:
    - Load version JSON (with inheritance)
    - Resolve all libraries
