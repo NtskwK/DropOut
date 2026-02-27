@@ -31,3 +31,6 @@ artifacts/
 
 # AUR Release
 release/
+
+# claude code
+.claude/
