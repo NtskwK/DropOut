@@ -17,12 +17,12 @@ export async function loader({ params }: Route.LoaderArgs) {
   const lang = (params.lang && i18n.languages.includes(params.lang as any))
     ? (params.lang as 'zh' | 'en')
     : (i18n.defaultLanguage as 'zh' | 'en');
-  
+
   // 获取文档路径 slugs
   const slugs = params['*']?.split('/').filter((v) => v.length > 0) || [];
-  
+
   const page = source.getPage(slugs, lang);
-  
+
   if (!page) {
     throw new Response('Not found', { status: 404 });
   }
@@ -45,7 +45,7 @@ const clientLoader = browserCollections.docs.createClientLoader({
           <Mdx
             components={{
               ...defaultMdxComponents,
-              Card: (props: any) => (
+              Card: (props: React.ComponentProps<typeof Card>) => (
                 <Card
                   {...props}
                   className={`border-blue-600/20 hover:border-blue-600/50 transition-colors ${props.className || ''}`}
