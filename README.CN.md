@@ -14,7 +14,7 @@
 DropOut 是一个现代的、可复现的、开发者级别的 Minecraft 启动器。
 它不仅仅是为了启动 Minecraft 而设计的，而是将 Minecraft 环境作为确定性的、版本化的工作空间进行管理。
 
-使用 Tauri v2 和 Rust 构建，DropOut 提供原生性能和最小资源使用，并配有现代响应式 Web UI（目前使用 Svelte 5，正在迁移到 React）。
+DropOut 使用 Tauri v2 构建，DropOut 提供原生性能和最小资源使用，并配有现代响应式 Web UI（目前使用 Svelte 5，正在迁移到 React）。
 
 > Minecraft 环境是一个复杂的系统。
 > DropOut 将它们视为软件项目。
