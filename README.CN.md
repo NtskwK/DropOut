@@ -29,13 +29,13 @@ DropOut 使用 Tauri v2 构建，DropOut 提供原生性能和最小资源使用
 DropOut 专注于保持你的游戏稳定、可调试和可重现。
 
 - 整合包昨天还能游玩，今天却坏了？
-→ DropOut 让它可追溯。
+  → DropOut 让它可追溯。
 
 - 分享模组包意味着压缩数 GB 的文件？
-→ DropOut 分享精确的依赖清单。
+  → DropOut 分享精确的依赖清单。
 
 - Java、加载器、模组、配置不同步？
-→ DropOut 将它们锁定在一起。
+  → DropOut 将它们锁定在一起。
 
 这个启动器是为重视控制、透明度和长期稳定性的玩家构建的。
 
@@ -58,14 +58,14 @@ DropOut 专注于保持你的游戏稳定、可调试和可重现。
 
 ## 路线图
 
-- [X] **账户持久化** — 在会话之间保存登录状态
-- [X] **令牌刷新** — 自动刷新过期的 Microsoft 令牌
-- [X] **JVM 参数解析** — 完全支持 `arguments.jvm` 和 `arguments.game` 解析
-- [X] **Java 自动检测和下载** — 扫描系统并下载 Java 运行时
-- [X] **Fabric 加载器支持** — 使用 Fabric 安装和启动
-- [X] **Forge 加载器支持** — 使用 Forge 安装和启动
-- [X] **GitHub 发布集成** — 在应用内查看变更日志
-- [ ] **实例/配置文件系统** — 多个隔离的游戏目录，具有不同的版本/模组
+- [x] **账户持久化** — 在会话之间保存登录状态
+- [x] **令牌刷新** — 自动刷新过期的 Microsoft 令牌
+- [x] **JVM 参数解析** — 完全支持 `arguments.jvm` 和 `arguments.game` 解析
+- [x] **Java 自动检测和下载** — 扫描系统并下载 Java 运行时
+- [x] **Fabric 加载器支持** — 使用 Fabric 安装和启动
+- [x] **Forge 加载器支持** — 使用 Forge 安装和启动
+- [x] **GitHub 发布集成** — 在应用内查看变更日志
+- [ ] **[WIP]实例/配置文件系统** — 多个隔离的游戏目录，具有不同的版本/模组
 - [ ] **多账户支持** — 在多个账户之间无缝切换
 - [ ] **自定义游戏目录** — 允许用户选择游戏文件位置
 - [ ] **启动器自动更新** — 通过 Tauri 更新插件的自更新机制
@@ -76,21 +76,21 @@ DropOut 专注于保持你的游戏稳定、可调试和可重现。
 
 从 [Releases](https://github.com/HsiangNianian/DropOut/releases) 页面下载适用于您平台的最新版本。
 
-| 平台          | 文件                    |
-| -------------- | ----------------------- |
-| Linux x86_64   | `.deb`, `.AppImage` |
-| Linux ARM64    | `.deb`, `.AppImage` |
-| macOS ARM64    | `.dmg`                |
-| Windows x86_64 | `.msi`, `.exe`      |
-| Windows ARM64  | `.msi`, `.exe`      |
+| 平台 | 文件 |
+| -------------- | ------------------- |
+| Linux x86_64 | `.deb`, `.AppImage` |
+| Linux ARM64 | `.deb`, `.AppImage` |
+| macOS ARM64 | `.dmg` |
+| Windows x86_64 | `.msi`, `.exe` |
+| Windows ARM64 | `.msi`, `.exe` |
 
 ## 从源码构建
 
 ### 先决条件
 
 1. **Rust**：从 [rustup.rs](https://rustup.rs/) 安装。
-2. **Node.js** 和 **pnpm**：用于前端依赖。
-3. **系统依赖**：按照您的操作系统遵循 [Tauri 先决条件](https://v2.tauri.app/start/prerequisites/)。
+1. **Node.js** 和 **pnpm**：用于前端依赖。
+1. **系统依赖**：按照您的操作系统遵循 [Tauri 先决条件](https://v2.tauri.app/start/prerequisites/)。
 
 ### 步骤
 
@@ -107,14 +107,14 @@ DropOut 专注于保持你的游戏稳定、可调试和可重现。
    pnpm install
    ```
 
-3. **运行开发模式**
+1. **运行开发模式**
 
    ```bash
    # 这将启动前端服务器和 Tauri 应用窗口
    cargo tauri dev
    ```
 
-4. **构建发布版本**
+1. **构建发布版本**
 
    ```bash
    cargo tauri build
